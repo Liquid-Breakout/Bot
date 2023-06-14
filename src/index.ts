@@ -12,9 +12,9 @@ if (fs.existsSync(path.resolve(__dirname, "../dev_config/.env"))) {
 
 const RobloxToken: string | undefined = process.env["LBCookie"];
 const BotToken: string | undefined = process.env["BotToken"];
-const PrivilegeApiKey: string = process.env["PrivilegeApiKey"] || "LB_DEVTEST_PRIVILEGE_API_HOLDER_ABC_XYZ";
+const MongoDBUri: string | undefined = process.env["MongoDBUri"];
 
-const WhitelistBackend = new Backend(RobloxToken, PrivilegeApiKey);
-const Bot = new DiscordBot(WhitelistBackend, ";", BotToken);
-new ServerFrontend(WhitelistBackend, Bot);
+const TheBackend = new Backend(RobloxToken, MongoDBUri);
+const Bot = new DiscordBot(TheBackend, ";", BotToken);
+new ServerFrontend(TheBackend, Bot);
 Bot.start();

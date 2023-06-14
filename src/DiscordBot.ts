@@ -43,7 +43,7 @@ class DiscordBot {
             this.UpdatePresence("Pending.");
             if (WhitelistOutput.code == this._backend.OutputCodes["WHITELIST_SUCCESS"]) {
                 const shareableId: number | undefined = WhitelistOutput.data ? WhitelistOutput.data["shareableId"] : undefined;
-                await Message.reply(`Whitelisted successfully!${shareableId != undefined ? `Your shareable ID is: ${shareableId}` : ""}`);
+                await Message.reply(`Whitelisted successfully!${shareableId != undefined ? ` Your shareable ID is: \`\`${shareableId}\`\`` : ""}`);
             } else if (WhitelistOutput.code == this._backend.OutputCodes["ALREADY_WHITELISTED"])
                 await Message.reply(`Already whitelisted. Use ${this.Prefix}getshareid to get the shareable ID.`);
             else
@@ -85,22 +85,128 @@ class DiscordBot {
                 Message.delete();
 
             this.UpdatePresence("Pending.");
-        } else if (CommandName == "setapikey") {
-            if (this.privilegeUsers.indexOf(Message.author.id) == -1)
-                return Message.reply("You cannot use this command!");
-
-            this._backend.PrivilegeApiKey = Arguments[0];
-            Message.reply(`Privilege API key has been set to '${Arguments[0]}'.`);
-            this.UpdatePresence("Pending.");
-        } else if (CommandName == "revokeapikey") {
-            if (this.privilegeUsers.indexOf(Message.author.id) == -1)
-                return Message.reply("You cannot use this command!");
-
-            Message.reply("Privilege API key has been revoked.");
-            this._backend.PrivilegeApiKey = "REVOKED";
-            this.UpdatePresence("Pending.");
         } else if (CommandName == "help") {
             Message.reply(";help: This Message\n;whitelist [id]: Whitelist a map\n;getshareid [id]: Create a shareable ID (Short ID in FE2CM terms).");
+            this.UpdatePresence("Pending.");
+        } else if (CommandName == "createapikey") {
+            if (this.privilegeUsers.indexOf(Message.author.id) == -1)
+                return Message.reply("You cannot use this command!");
+            const newKey = await this._backend.CreateApiKeyEntry();
+            Message.reply(`Successfully created new key, your key is: \`\`${newKey}\`\``);
+            this.UpdatePresence("Pending.");
+        } else if (CommandName == "assignkeyownership") {
+            const SelectedApiKey: string | undefined = Arguments[0] || undefined;
+            if (!SelectedApiKey) {
+                this.UpdatePresence("Pending.");
+                return Message.reply("An API key must be provided.");
+            }
+            const AssignOwner: string | undefined = Arguments[1] || undefined;
+            if (!AssignOwner) {
+                this.UpdatePresence("Pending.");
+                return Message.reply("A username must be provided.");
+            }
+
+            const output = await this._backend.SetApiKeyEntryValue("byKey", SelectedApiKey, "assignOwner", AssignOwner);
+            if (output.code == this._backend.OutputCodes.OPERATION_SUCCESS)
+                Message.reply(`Successfully assigned \`\`${AssignOwner}\`\` to \`\`${SelectedApiKey}\`\``);
+            else
+                Message.reply(`Failed to assign, error: ${output.message}`);
+            
+            this.UpdatePresence("Pending.");
+        } else if (CommandName == "assignkeydiscord") {
+            const SelectedApiKey: string | undefined = Arguments[0] || undefined;
+            if (!SelectedApiKey) {
+                this.UpdatePresence("Pending.");
+                return Message.reply("An API key must be provided.");
+            }
+            const AssignOwner: number | undefined = Arguments[1] ? parseInt(Arguments[1]) : undefined;;
+            if (!AssignOwner) {
+                this.UpdatePresence("Pending.");
+                return Message.reply("Discord user ID must be a number.");
+            }
+
+            const output = await this._backend.SetApiKeyEntryValue("byKey", SelectedApiKey, "associatedDiscordUser", AssignOwner.toString());
+            if (output.code == this._backend.OutputCodes.OPERATION_SUCCESS)
+                Message.reply(`Successfully assigned \`\`${AssignOwner}\`\` to \`\`${SelectedApiKey}\`\``);
+            else
+                Message.reply(`Failed to assign, error: ${output.message}`);
+                
+            this.UpdatePresence("Pending.");
+        } else if (CommandName == "swapapikey") {
+            const SelectedApiKey: string | undefined = Arguments[0] || undefined;
+            if (!SelectedApiKey) {
+                this.UpdatePresence("Pending.");
+                return Message.reply("An API key must be provided.");
+            }
+            const NewApiKey: string | undefined = Arguments[1] || undefined;
+            if (!NewApiKey) {
+                this.UpdatePresence("Pending.");
+                return Message.reply("A new API key must be provided.");
+            }
+
+            const output = await this._backend.SetApiKeyEntryValue("byKey", SelectedApiKey, "value", NewApiKey);
+            if (output.code == this._backend.OutputCodes.OPERATION_SUCCESS)
+                Message.reply(`Switched \`\`${NewApiKey}\`\` to \`\`${SelectedApiKey}\`\``);
+            else
+                Message.reply(`Failed to assign, error: ${output.message}`);
+                
+            this.UpdatePresence("Pending.");
+        } else if (CommandName == "findapikeysfromuser") {
+            const SearchValue: string | undefined = Arguments[0] || undefined;
+            if (!SearchValue) {
+                this.UpdatePresence("Pending.");
+                return Message.reply("A search string must be provided.");
+            }
+
+            const documents = await this._backend.GetApiKeysFromUser(SearchValue);
+            var keys: any[] = [];
+            documents.forEach(async (document) => keys.push(`\`\`${document.value}\`\``));
+
+            if (keys.length > 0)
+                Message.reply(`Found ${keys.length} key(s): ${keys.join(", ")}`);
+            else
+                Message.reply("No keys found.")
+                
+            this.UpdatePresence("Pending.");
+        } else if (CommandName == "toggleapikey") {
+            const SelectedApiKey: string | undefined = Arguments[0] || undefined;
+            if (!SelectedApiKey) {
+                this.UpdatePresence("Pending.");
+                return Message.reply("An API key must be provided.");
+            }
+            const ToggleValue: string | undefined = Arguments[1] || undefined;
+            if (!ToggleValue || (ToggleValue != "false" && ToggleValue != "true")) {
+                this.UpdatePresence("Pending.");
+                return Message.reply("Toggle value must be either true or false.");
+            }
+
+            const trueToggle = ToggleValue == "true" ? true : false;
+            const output = await this._backend.SetApiKeyEntryValue("byKey", SelectedApiKey, "enabled", trueToggle);
+            if (output.code == this._backend.OutputCodes.OPERATION_SUCCESS)
+                Message.reply(`Successfully toggled \`\`${SelectedApiKey}\`\` enabled value to \`\`${ToggleValue}\`\``);
+            else
+                Message.reply(`Failed to toggle, error: ${output.message}`);
+                
+            this.UpdatePresence("Pending.");
+        } else if (CommandName == "toggleapikeybyuser") {
+            const User: string | undefined = Arguments[0] || undefined;
+            if (!User) {
+                this.UpdatePresence("Pending.");
+                return Message.reply("User must be a string.");
+            }
+            const ToggleValue: string | undefined = Arguments[1] || undefined;
+            if (!ToggleValue || (ToggleValue != "false" && ToggleValue != "true")) {
+                this.UpdatePresence("Pending.");
+                return Message.reply("Toggle value must be either true or false.");
+            }
+
+            const trueToggle = ToggleValue == "true" ? true : false;
+            const output = await this._backend.SetApiKeyEntryValue("byOwner", User, "enabled", trueToggle);
+            if (output.code == this._backend.OutputCodes.OPERATION_SUCCESS)
+                Message.reply(`Successfully toggled ${User}'s api keys enabled value to \`\`${ToggleValue}\`\``);
+            else
+                Message.reply(`Failed to toggle, error: ${output.message}`);
+                
             this.UpdatePresence("Pending.");
         }
     }

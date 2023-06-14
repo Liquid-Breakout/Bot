@@ -1,5 +1,6 @@
 import axios from "axios";
 import { Response } from "express";
+import mongoose from "mongoose";
 //import decodeAudio from "audio-decode"
 //import { decode } from "punycode";
 
@@ -66,21 +67,36 @@ class IDConverterClass {
     }
 }
 
+// Schemas
+const ApiKeySchema = new mongoose.Schema({
+    value: String,
+    assignOwner: String,
+    associatedDiscordUser: String,
+    enabled: Boolean,
+    timeCreated: Number,
+});
+
+// Models
+const ApiKeyModel = mongoose.model("apiKey", ApiKeySchema);
+
 function CreateOutput(Code: number, Message?: string | null, Data?: any) {
     return {"code": Code, "message": Message, data: Data};
 }
 
 class Backend {
+    private _privilegeKeyGenerator: IDConverterClass;
+
     public IDConverter: IDConverterClass;
     public RobloxToken: string;
-    public PrivilegeApiKey: string;
     public OutputCodes: {[index: string]: number} = {
-        "WHITELIST_SUCCESS": 0,
+        "OPERATION_SUCCESS": 0,
         "ALREADY_WHITELISTED": 1,
         "ERR_CANNOT_WHITELIST": 3,
         "ERR_NO_SESSION_TOKEN": 4, // Require a cookie change immediately
         "ERR_ITEM_NOT_OWNED_BY_USER": 5,
-        "ERR_INVALID_ITEM": 6
+        "ERR_INVALID_ITEM": 6,
+        "ERR_INVALID_API_KEY": 7,
+        "ERR_INVALID_API_KEY_OWNER": 8
     };
 
     public LookupNameByOutputCode(Code: number) {
@@ -178,7 +194,7 @@ class Backend {
                     },
                 });
                 return CreateOutput(
-                    this.OutputCodes.WHITELIST_SUCCESS,
+                    this.OutputCodes.OPERATION_SUCCESS,
                     null,
                     {"shareableId": this.IDConverter.Short(AssetId.toString())}
                 );
@@ -209,6 +225,72 @@ class Backend {
         } catch (AxiosResponse: any) {
             ExpressResponse.sendStatus(400);
         }
+    }
+
+    public async IsValidApiKey(apiKey: string) {
+        const document = await ApiKeyModel.findOne({ value: apiKey }).exec();
+        if (document == null)
+            return false;
+        if (!document.enabled)
+            return false;
+        return true
+    } 
+
+    public async UserAlreadyHaveApiKey(user: string) {
+        const foundDocument = await ApiKeyModel.findOne({$or: [
+            { assignOwner: user },
+            { associatedDiscordUser: user }
+        ]}).exec();
+        return foundDocument != null;
+    }
+
+    public async GenerateApiKey() {
+        const documentCount = await ApiKeyModel.countDocuments().exec();
+        return this._privilegeKeyGenerator.Short((documentCount * 8 + Date.now() * 2).toString());
+    }
+
+    public async CreateApiKeyEntry() {
+        const newDocument = new ApiKeyModel({ value: await this.GenerateApiKey(), timeCreated: Date.now(), enabled: true });
+        await newDocument.save();
+        return newDocument.value;
+    }
+
+    public async SetApiKeyEntryValue(method: string, searchValue: string, valueName: string, value: string | boolean) {
+        if (method == "byKey") {
+            if (!(await this.IsValidApiKey(searchValue)))
+                return CreateOutput(
+                    this.OutputCodes.ERR_INVALID_API_KEY,
+                    "API key do not exist or already disabled."
+                )
+            const document = await ApiKeyModel.findOne({ value: searchValue }).exec();
+            await document!.updateOne({ [valueName]: value });
+            
+            return CreateOutput(this.OutputCodes.OPERATION_SUCCESS);
+        } else if (method == "byOwner") {
+            if (!(await this.UserAlreadyHaveApiKey(searchValue)))
+                return CreateOutput(
+                    this.OutputCodes.ERR_INVALID_API_KEY_OWNER,
+                    "The specified user do not have API key."
+                )
+            const documents = await ApiKeyModel.find({$or: [
+                { assignOwner: searchValue },
+                { associatedDiscordUser: searchValue }
+            ]}).exec();
+
+            documents.forEach(async (document) => await document!.updateOne({ [valueName]: value }));
+
+            return CreateOutput(this.OutputCodes.OPERATION_SUCCESS);
+        }
+
+        return CreateOutput(this.OutputCodes.OPERATION_SUCCESS); // lol dont ask why
+    }
+
+    public async GetApiKeysFromUser(User: string) {
+        const documents = await ApiKeyModel.find({$or: [
+            { assignOwner: User },
+            { associatedDiscordUser: User }
+        ]});
+        return documents;
     }
 
     /*public async GetSoundFrequenciesData(SoundId: number) {
@@ -261,18 +343,22 @@ class Backend {
         const decodedData = await decodeAudio(audioBuffer);
     }*/
 
-    constructor(SetRobloxToken?: string, PrivilegeKey?: string) {
+    constructor(SetRobloxToken?: string, MongoDbUrl?: string) {
         if (SetRobloxToken == undefined)
             throw new Error("Backend: No Roblox Token was supplied.")
-        if (PrivilegeKey == undefined)
-            PrivilegeKey = "";
+        if (MongoDbUrl == undefined)
+            throw new Error("Backend: No MongoDB uri was supplied.")
 
         this.IDConverter = new IDConverterClass(
             "123456789*=+-aAbBcCdDeEfFgGhHiIjJkKlLmMnNoOpPqQrRsStTuUvVwWxXyYzZ",
             "0123456789"
         );
+        this._privilegeKeyGenerator = new IDConverterClass(
+            "qwertyuiopasdfghjklzxcvbnm0192837465",
+            "5432189076"
+        )
         this.RobloxToken = SetRobloxToken;
-        this.PrivilegeApiKey = PrivilegeKey;
+        mongoose.connect(MongoDbUrl);
 
         console.log("Backend initialize");
     }

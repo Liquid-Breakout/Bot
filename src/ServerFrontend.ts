@@ -44,7 +44,7 @@ class ServerFrontend {
 
             Response.send(this._backend.IDConverter.Short(AssetId.toString()));
         });
-        this.ServerApp.get('/getnumberid', (Request: Request, Response: Response) => {
+        this.ServerApp.get('/getnumberid', async (Request: Request, Response: Response) => {
             const RequestQuery = Request.query;
             let AssetId: string | undefined = RequestQuery.assetId ? RequestQuery.assetId.toString() : undefined;
             let ApiKey: string = RequestQuery.apiKey ? RequestQuery.apiKey.toString() : "NULL";
@@ -53,7 +53,7 @@ class ServerFrontend {
                 Response.status(400).send("Invalid assetId param.")
 				return;
 			}
-            if (ApiKey == "NULL" || ApiKey != this._backend.PrivilegeApiKey) {
+            if (ApiKey == "NULL" || !(await this._backend.IsValidApiKey(ApiKey))) {
 				Response.status(400).send("Invalid apiKey param or API key has been invalidated.")
 				return;
             }
@@ -70,7 +70,7 @@ class ServerFrontend {
                 Response.status(400).send("Invalid placeId param.")
 				return;
 			}
-            if (ApiKey == "NULL" || ApiKey != this._backend.PrivilegeApiKey) {
+            if (ApiKey == "NULL" || !(await this._backend.IsValidApiKey(ApiKey))) {
 				Response.status(400).send("Invalid apiKey param or API key has been invalidated.")
 				return;
             }
@@ -82,7 +82,7 @@ class ServerFrontend {
             const RequestQuery = Request.query;
             let ApiKey: string = RequestQuery.apiKey ? RequestQuery.apiKey.toString() : "NULL";
 
-            if (ApiKey == "NULL" || ApiKey != this._backend.PrivilegeApiKey) {
+            if (ApiKey == "NULL" || !(await this._backend.IsValidApiKey(ApiKey))) {
 				Response.status(400).send("Invalid apiKey param or API key has been invalidated.")
 				return;
             }
