@@ -41,10 +41,10 @@ class DiscordBot {
             }
             const WhitelistOutput = await this._backend.WhitelistAsset(RequestAssetId, NaN);
             this.UpdatePresence("Pending.");
-            if (WhitelistOutput.code == this._backend.OutputCodes["WHITELIST_SUCCESS"]) {
+            if (WhitelistOutput.code == this._backend.OutputCodes.OPERATION_SUCCESS) {
                 const shareableId: number | undefined = WhitelistOutput.data ? WhitelistOutput.data["shareableId"] : undefined;
                 await Message.reply(`Whitelisted successfully!${shareableId != undefined ? ` Your shareable ID is: \`\`${shareableId}\`\`` : ""}`);
-            } else if (WhitelistOutput.code == this._backend.OutputCodes["ALREADY_WHITELISTED"])
+            } else if (WhitelistOutput.code == this._backend.OutputCodes.ALREADY_WHITELISTED)
                 await Message.reply(`Already whitelisted. Use ${this.Prefix}getshareid to get the shareable ID.`);
             else
                 await Message.reply(`Error while whitelisting!\nCode: ${this._backend.LookupNameByOutputCode(WhitelistOutput.code)}${WhitelistOutput.message != undefined ? `\n${WhitelistOutput.message}` : ""}`)
