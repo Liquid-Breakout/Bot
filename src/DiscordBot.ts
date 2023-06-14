@@ -10,6 +10,7 @@ class DiscordBot {
     private privilegeUsers: string[] = ["915410908921077780", "849118831251030046"];
     private reverseShortPrivilegeUsers: string[] = ["915410908921077780", "849118831251030046", "324812431165751298"];
 
+    public Alive: boolean;
     public Prefix: string;
 
     public UpdatePresence(ActivityName: string) {
@@ -22,7 +23,7 @@ class DiscordBot {
     }
 
     public async OnMessage(Message: Message): Promise<any> {
-        if (!Message || !Message.content.startsWith(this.Prefix))
+        if (!Message || !Message.content.startsWith(this.Prefix) || !this.Alive)
             return;
         const Arguments: string[] = Message.content.slice(this.Prefix.length).trim().split(/ +/);
         let CommandName: string | undefined = Arguments.shift();
@@ -52,13 +53,13 @@ class DiscordBot {
         } else if (CommandName == "test") {
             this.UpdatePresence("Pending.");
             Message.reply("Hello! I'm alive!");
-        } else if (CommandName == "forceShutdown") {
+        } else if (CommandName == "shutdown") {
             if (this.privilegeUsers.indexOf(Message.author.id) == -1)
                 return Message.reply("You cannot use this command!");
             this.UpdatePresence("Pending.");
-            Message.reply("Force shutting down...");
-            this._client
-            this._client = null;
+            await Message.reply("Force shutting down...");
+            this._client.destroy();
+            this.Alive = false;
         } else if (CommandName == "broadcast") {
             if (this.privilegeUsers.indexOf(Message.author.id) == -1) return Message.reply("You cannot use this command!");
             const BroadcastMessage: string = Arguments.join(" ");
@@ -130,8 +131,10 @@ class DiscordBot {
         });
         this._token = BotToken;
         this.Prefix = Prefix
+        this.Alive = false;
 
         this._client.on("ready", () => {
+            this.Alive = true;
             console.log("DiscordBot: Ready for command");
             this.UpdatePresence("Pending");
         });

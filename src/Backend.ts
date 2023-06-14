@@ -196,7 +196,8 @@ class Backend {
     }    
 
     public async Internal_GetPlaceFile(PlaceId: number, ExpressResponse: Response) {
-        const AxiosResponse = await axios({
+        try {
+            const AxiosResponse = await axios({
                 url: `https://assetdelivery.roblox.com/v1/asset/?id=${PlaceId}`,
                 method: "GET",
                 responseType: "stream",
@@ -204,7 +205,10 @@ class Backend {
                     cookie: `.ROBLOSECURITY=${this.RobloxToken}` 
                 }
             });
-        AxiosResponse.data.pipe(ExpressResponse);
+            AxiosResponse.data.pipe(ExpressResponse);
+        } catch (AxiosResponse: any) {
+            ExpressResponse.sendStatus(400);
+        }
     }
 
     /*public async GetSoundFrequenciesData(SoundId: number) {
