@@ -86,9 +86,9 @@ class ServerFrontend {
 				Response.status(400).send("Invalid apiKey param or API key has been invalidated.")
 				return;
             }
-            if (DiscordBot.)
-
-            D
+            if (!this._discordBot.Alive)
+                this._discordBot.start();
+            Response.send("Request sent to bot.")
         });
 
         this.ServerApp.listen(8000, () => {
