@@ -9,6 +9,7 @@
   "author": "cutymeo",
   "license": "ISC",
   "dependencies": {
+    "audio-decode": "^2.1.3",
     "axios": "^0.26.1",
     "body-parser": "^1.20.2",
     "discord.js": "^13.8.0",

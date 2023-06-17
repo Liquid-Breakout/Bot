@@ -1,8 +1,7 @@
 import axios from "axios";
 import { Response } from "express";
 import mongoose from "mongoose";
-//import decodeAudio from "audio-decode"
-//import { decode } from "punycode";
+import * as decodeAudio from "./audioDecoder/index"
 
 function reverseString(inputStr: string): string {
     let strArray: Array<string> = inputStr.split(" ");
@@ -88,6 +87,7 @@ class Backend {
 
     public IDConverter: IDConverterClass;
     public RobloxToken: string;
+    public RobloxAudioToken: string;
     public OutputCodes: {[index: string]: number} = {
         "OPERATION_SUCCESS": 0,
         "ALREADY_WHITELISTED": 1,
@@ -293,7 +293,7 @@ class Backend {
         return documents;
     }
 
-    /*public async GetSoundFrequenciesData(SoundId: number) {
+    public async GetSoundFrequenciesData(SoundId: number) {
         let SessionToken: string | undefined = undefined;
         try {
             await axios({
@@ -318,13 +318,29 @@ class Backend {
                 url: `https://assetdelivery.roblox.com/v1/assets/batch`,
                 method: "POST",
                 headers: {
-                    cookie: `.ROBLOSECURITY=${this.RobloxToken}` 
+                    cookie: `.ROBLOSECURITY=${this.RobloxToken}`,
+                    "Roblox-Place-Id": 0,
+                    "Roblox-Browser-Asset-Request": "true"
                 },
                 data: [{
-                    requestId: 0,
+                    requestId: SoundId,
                     assetId: SoundId
                 }]
             })).data;
+            if (AssetData[0]["error"])
+                AssetData = (await axios({
+                    url: `https://assetdelivery.roblox.com/v1/assets/batch`,
+                    method: "POST",
+                    headers: {
+                        cookie: `.ROBLOSECURITY=${this.RobloxAudioToken}`,
+                        "Roblox-Place-Id": 0,
+                        "Roblox-Browser-Asset-Request": "true"
+                    },
+                    data: [{
+                        requestId: SoundId,
+                        assetId: SoundId
+                    }]
+                })).data;
         } catch (AxiosResponse: any) { ErrorResponse = AxiosResponse; }
         if (!AssetData)
             return CreateOutput(
@@ -337,15 +353,19 @@ class Backend {
             );
         
         const audioUrl: string | undefined = AssetData[0]["location"];
-        if (!audioUrl) return []; // because im just testing, no handles
+        if (!audioUrl) return AssetData; // because im just testing, no handles
         const initialAudioBuffer: ArrayBuffer = (await axios.get(audioUrl, {responseType: "arraybuffer"})).data;
         const audioBuffer: Buffer = Buffer.from(initialAudioBuffer);
-        const decodedData = await decodeAudio(audioBuffer);
-    }*/
+        const decodedData = await decodeAudio.default(audioBuffer);
 
-    constructor(SetRobloxToken?: string, MongoDbUrl?: string) {
+        return decodedData;
+    }
+
+    constructor(SetRobloxToken?: string, SetRobloxAudioToken?: string, MongoDbUrl?: string) {
         if (SetRobloxToken == undefined)
             throw new Error("Backend: No Roblox Token was supplied.")
+        if (SetRobloxAudioToken == undefined)
+            SetRobloxAudioToken = "";
         if (MongoDbUrl == undefined)
             throw new Error("Backend: No MongoDB uri was supplied.")
 
@@ -358,6 +378,7 @@ class Backend {
             "5432189076"
         )
         this.RobloxToken = SetRobloxToken;
+        this.RobloxAudioToken = SetRobloxAudioToken;
         mongoose.connect(MongoDbUrl);
 
         console.log("Backend initialize");

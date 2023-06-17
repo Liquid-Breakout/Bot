@@ -91,6 +91,18 @@ class ServerFrontend {
             Response.send("Request sent to bot.")
         });
 
+        this.ServerApp.get('/internal/getfrequency', async (Request: Request, Response: Response) => {
+            const RequestQuery = Request.query;
+            let AssetId: number = RequestQuery.assetId ? parseInt(RequestQuery.assetId.toString()) : NaN;
+
+            if (isNaN(AssetId)) {
+                Response.status(400).send("Invalid assetId param.")
+				return;
+			}
+
+            Response.send(await this._backend.GetSoundFrequenciesData(AssetId));
+        });
+
         this.ServerApp.listen(8000, () => {
             console.log(`ServerFrontEnd: Ready for request`);
         });
