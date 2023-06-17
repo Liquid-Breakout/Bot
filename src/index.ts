@@ -11,10 +11,11 @@ if (fs.existsSync(path.resolve(__dirname, "../dev_config/.env"))) {
 }
 
 const RobloxToken: string | undefined = process.env["LBCookie"];
+const RobloxAudioToken: string | undefined = process.env["AudioCookie"];
 const BotToken: string | undefined = process.env["BotToken"];
 const MongoDBUri: string | undefined = process.env["MongoDBUri"];
 
-const TheBackend = new Backend(RobloxToken, MongoDBUri);
+const TheBackend = new Backend(RobloxToken, RobloxAudioToken, MongoDBUri);
 const Bot = new DiscordBot(TheBackend, ";", BotToken);
 new ServerFrontend(TheBackend, Bot);
 Bot.start();

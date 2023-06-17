@@ -307,10 +307,22 @@ class Backend {
             SessionToken = AxiosResponse.response.headers["x-csrf-token"];
         }
         if (SessionToken == undefined)
-            return CreateOutput(
-                this.OutputCodes.ERR_NO_SESSION_TOKEN,
-                "Cannot get sound data: Failed to obtain session token.\nContact the developer."
-            );
+            try {
+                await axios({
+                    url: "https://auth.roblox.com/v2/logout",
+                    method: "POST",
+                    headers: {
+                        cookie: `.ROBLOSECURITY=${this.RobloxToken}`,
+                    },
+                });
+            } catch (AxiosResponse: any) {
+                SessionToken = AxiosResponse.response.headers["x-csrf-token"];
+            }
+            if (SessionToken == undefined)
+                return CreateOutput(
+                    this.OutputCodes.ERR_NO_SESSION_TOKEN,
+                    "Cannot whitelist: Failed to obtain session token.\nContact the developer."
+                );
         
         let AssetData, ErrorResponse;
         try {
