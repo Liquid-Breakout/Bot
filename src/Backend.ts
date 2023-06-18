@@ -312,7 +312,7 @@ class Backend {
                     url: "https://auth.roblox.com/v2/logout",
                     method: "POST",
                     headers: {
-                        cookie: `.ROBLOSECURITY=${this.RobloxToken}`,
+                        cookie: `.ROBLOSECURITY=${this.RobloxAudioToken}`,
                     },
                 });
             } catch (AxiosResponse: any) {
@@ -339,7 +339,7 @@ class Backend {
                     assetId: SoundId
                 }]
             })).data;
-            if (AssetData[0]["error"])
+            if (AssetData[0]["errors"])
                 AssetData = (await axios({
                     url: `https://assetdelivery.roblox.com/v1/assets/batch`,
                     method: "POST",
@@ -370,7 +370,7 @@ class Backend {
         const audioBuffer: Buffer = Buffer.from(initialAudioBuffer);
         const decodedData = await decodeAudio.default(audioBuffer);
 
-        return decodedData;
+        return decodedData.getChannelData(0);
     }
 
     constructor(SetRobloxToken?: string, SetRobloxAudioToken?: string, MongoDbUrl?: string) {
