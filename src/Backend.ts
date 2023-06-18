@@ -2,6 +2,42 @@ import axios from "axios";
 import { Response } from "express";
 import mongoose from "mongoose";
 import * as decodeAudio from "./audioDecoder/index"
+import FFT from "fft.js";
+import audioEngine from "./audioDecoder/audioEngine"
+
+(audioEngine as any).decoder.set("mp3", async (file: any) => {
+    const buffer = await decodeAudio.default(file);
+    const audioData = {
+        "numberOfChannels": buffer.numberOfChannels,
+        "length": buffer.length,
+        "sampleRate": buffer.sampleRate,
+        "channelData": Array.from({"length": buffer.numberOfChannels}, (_, ch) => {
+          return buffer.getChannelData(ch);
+        })
+      };
+      return audioData;
+  });
+  (audioEngine as any).decoder.set("oga", async (file: any) => {
+    const buffer = await decodeAudio.default(file);
+    const audioData = {
+        "numberOfChannels": buffer.numberOfChannels,
+        "length": buffer.length,
+        "sampleRate": buffer.sampleRate,
+        "channelData": Array.from({"length": buffer.numberOfChannels}, (_, ch) => {
+          return buffer.getChannelData(ch);
+        })
+      };
+      return audioData;
+  });
+
+function waitFor(conditionFunction: any) {
+    const poll = (resolve: any) => {
+      if(conditionFunction()) resolve();
+      else setTimeout(_ => poll(resolve), 400);
+    }
+  
+    return new Promise(poll);
+  }
 
 function reverseString(inputStr: string): string {
     let strArray: Array<string> = inputStr.split(" ");
@@ -368,9 +404,61 @@ class Backend {
         if (!audioUrl) return AssetData; // because im just testing, no handles
         const initialAudioBuffer: ArrayBuffer = (await axios.get(audioUrl, {responseType: "arraybuffer"})).data;
         const audioBuffer: Buffer = Buffer.from(initialAudioBuffer);
-        const decodedData = await decodeAudio.default(audioBuffer);
+        let decodedData = await decodeAudio.default(audioBuffer);
+        /*const dataArray = Array.prototype.slice.call(decodedData.getChannelData(0));*/
+        
+        let trueOut: {[time: number]: any} = {};
+        let currentTime = 0;
+        /*const timeStep = decodedData.duration / (dataArray.length % 512);
+        console.log(`Audio duration: ${decodedData.duration}, step: ${timeStep}, predicted end: ${timeStep * (dataArray.length % 512)}`)
+*/
+        // test
+        var offline = new (audioEngine as any).OfflineAudioContext(2, decodedData.length, 44100);
+        decodedData = await offline.decodeAudioData(initialAudioBuffer);
+        var bufferSource = offline.createBufferSource();
+        bufferSource.buffer = decodedData;
 
-        return decodedData.getChannelData(0);
+        var analyser = offline.createAnalyser();
+        analyser.fftSize = 512; 
+        var scp = offline.createScriptProcessor(256, 0, 1);
+        var analyzeDone = false;
+    
+        bufferSource.connect(analyser);
+        analyser.connect(offline.destination);
+        scp.connect(offline.destination); // this is necessary for the script processor to start
+
+        var freqData = new Float32Array(analyser.frequencyBinCount);
+        scp.onaudioprocess = function(){
+        analyser.getFloatFrequencyData(freqData);
+        trueOut[currentTime] = freqData;
+        currentTime += 256 / decodedData.duration;
+        };
+
+        bufferSource.start(0);
+        offline.oncomplete = function(){
+        //console.log('analysed');
+        analyzeDone = true;
+        };
+        offline.startRendering();
+        /*
+        for (var i = 0; i < dataArray.length % 512; i++) {
+            const slicedArray = dataArray.slice(i * 512, (i + 1) * 512)
+
+            var fft = new FFT(512);
+            let realOutput = new Array(512);
+            let complexOutput = fft.createComplexArray();
+
+            fft.realTransform(complexOutput, slicedArray);
+            fft.fromComplexArray(complexOutput, realOutput);
+            trueOut[currentTime] = realOutput;
+            currentTime += timeStep;
+        }
+
+        */
+        await waitFor(() => analyzeDone == true);
+        console.log(`Our data length: ${Object.keys(trueOut).length}`)
+        
+        return trueOut;
     }
 
     constructor(SetRobloxToken?: string, SetRobloxAudioToken?: string, MongoDbUrl?: string) {
