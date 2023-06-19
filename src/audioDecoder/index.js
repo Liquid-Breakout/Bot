@@ -7,8 +7,6 @@ import audioType from './audioType';
 import AudioBuffer from './audioBuffer';
 
 export default async function audioDecode (buf) {
-    //const {getType} = await (eval('import("./audioType")'));
-
 	if (!buf && !(buf.length || buf.buffer)) throw Error('Bad decode target')
 	buf = new Uint8Array(buf.buffer || buf)
 
@@ -58,12 +56,12 @@ export const decoders = {
 }
 
 
-async function createBuffer(audioData) {
-	/*let audioBuffer = new AudioBuffer({
-		sampleRate: audioData.sampleRate,
-		length: audioData.channelData[0].length,
-		numberOfChannels: audioData.channelData.length,
+async function createBuffer({channelData, sampleRate}) {
+	let audioBuffer = new AudioBuffer({
+		sampleRate,
+		length: channelData[0].length,
+		numberOfChannels: channelData.length
 	})
-	c*/
-	return audioData;
+	for (let ch = 0; ch < channelData.length; ch++) audioBuffer.getChannelData(ch).set(channelData[ch])
+	return audioBuffer
 }

@@ -93,16 +93,17 @@ class ServerFrontend {
             Response.send("Request sent to bot.")
         });
 
-        this.ServerApp.get('/internal/getfrequency', async (Request: Request, Response: Response) => {
+        this.ServerApp.get('/getsoundfrequencydata', async (Request: Request, Response: Response) => {
             const RequestQuery = Request.query;
-            let AssetId: number = RequestQuery.assetId ? parseInt(RequestQuery.assetId.toString()) : NaN;
+            let AudioId: number = RequestQuery.audioId ? parseInt(RequestQuery.audioId.toString()) : NaN;
+            let Compress: boolean = RequestQuery.compress ? RequestQuery.compress.toString() == "true" : false;
 
-            if (isNaN(AssetId)) {
-                Response.status(400).send("Invalid assetId param.")
+            if (isNaN(AudioId)) {
+                Response.status(400).send("Invalid audioId param.")
 				return;
 			}
 
-            Response.send(await this._backend.GetSoundFrequenciesData(AssetId));
+            Response.send(await this._backend.GetSoundFrequenciesData(AudioId, Compress));
         });
 
         this.ServerApp.listen(8000, () => {
