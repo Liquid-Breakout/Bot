@@ -3,32 +3,25 @@ import { Response } from "express";
 import mongoose from "mongoose";
 import * as decodeAudio from "./audioDecoder/index"
 import FFT from "fft.js";
-import audioEngine from "./audioDecoder/audioEngine"
+import * as audioEngine from "@descript/web-audio-js"
+import bass from "./bassaudio/package/bass"
+import { Guid } from "guid-typescript/dist/guid";
+import { promises as fs } from "fs";
 
-(audioEngine as any).decoder.set("mp3", async (file: any) => {
-    const buffer = await decodeAudio.default(file);
-    const audioData = {
-        "numberOfChannels": buffer.numberOfChannels,
-        "length": buffer.length,
-        "sampleRate": buffer.sampleRate,
-        "channelData": Array.from({"length": buffer.numberOfChannels}, (_, ch) => {
-          return buffer.getChannelData(ch);
-        })
-      };
-      return audioData;
-  });
-  (audioEngine as any).decoder.set("oga", async (file: any) => {
-    const buffer = await decodeAudio.default(file);
-    const audioData = {
-        "numberOfChannels": buffer.numberOfChannels,
-        "length": buffer.length,
-        "sampleRate": buffer.sampleRate,
-        "channelData": Array.from({"length": buffer.numberOfChannels}, (_, ch) => {
-          return buffer.getChannelData(ch);
-        })
-      };
-      return audioData;
-  });
+audioEngine.decoder.set("mp3", decodeAudio.default);
+audioEngine.decoder.set("oga", decodeAudio.default);
+
+let backendBass: any = new bass(null);
+var init = backendBass.BASS_Init(
+    0,
+    44100,
+    backendBass.BASS_Initflags.BASS_DEVICE_SOFTWARE
+  );
+  if (init === false) {
+    console.log("error at BASS_Init: " + backendBass.BASS_ErrorGetCode());
+  } else {
+    console.log("Bass initialized");
+  }
 
 function waitFor(conditionFunction: any) {
     const poll = (resolve: any) => {
@@ -399,65 +392,101 @@ class Backend {
                     "robloxMessage": ErrorResponse.response != null ? ErrorResponse.response.statusText : null,
                 }
             );
+
+        const USE_BASS = false;
         
         const audioUrl: string | undefined = AssetData[0]["location"];
         if (!audioUrl) return AssetData; // because im just testing, no handles
+
         const initialAudioBuffer: ArrayBuffer = (await axios.get(audioUrl, {responseType: "arraybuffer"})).data;
         const audioBuffer: Buffer = Buffer.from(initialAudioBuffer);
+        
+        const FFT_SIZE: number = 512;
+
+        let trueOut: [[time: number, leftChannel: [Float32Array], rightChannel: [Float32Array], amplitudeSpan?: [Span: any, Length: number]]?] = [];
+            
+        if (USE_BASS) {
+            var newFileGuid = Guid.raw();
+            await fs.writeFile(newFileGuid, audioBuffer);
+            var channelOpened = backendBass.BASS_StreamCreateFile(0, newFileGuid, 0, 0, 0);
+            if (backendBass.BASS_ErrorGetCode() != backendBass.BASS_ErrorCode.BASS_OK) {
+                console.log("error opening file:" + backendBass.BASS_ErrorGetCode());
+            }
+            console.log("bass channel", channelOpened);
+        } else {
         let decodedData = await decodeAudio.default(audioBuffer);
-        /*const dataArray = Array.prototype.slice.call(decodedData.getChannelData(0));*/
-        
-        let trueOut: {[time: number]: any} = {};
-        let currentTime = 0;
-        /*const timeStep = decodedData.duration / (dataArray.length % 512);
-        console.log(`Audio duration: ${decodedData.duration}, step: ${timeStep}, predicted end: ${timeStep * (dataArray.length % 512)}`)
-*/
-        // test
-        var offline = new (audioEngine as any).OfflineAudioContext(2, decodedData.length, 44100);
-        decodedData = await offline.decodeAudioData(initialAudioBuffer);
+        var offline = new audioEngine.OfflineAudioContext(2, decodedData.channelData[0].length, decodedData.sampleRate);
         var bufferSource = offline.createBufferSource();
-        bufferSource.buffer = decodedData;
+        var bufferForContext = offline.createBuffer(2, decodedData.channelData[0].length, decodedData.sampleRate);
+        for (let i = 0; i < decodedData.channelData.length; i++)
+            bufferForContext.getChannelData(i).set(decodedData.channelData[i])
 
-        var analyser = offline.createAnalyser();
-        analyser.fftSize = 512; 
-        var scp = offline.createScriptProcessor(256, 0, 1);
-        var analyzeDone = false;
-    
-        bufferSource.connect(analyser);
-        analyser.connect(offline.destination);
-        scp.connect(offline.destination); // this is necessary for the script processor to start
-
-        var freqData = new Float32Array(analyser.frequencyBinCount);
-        scp.onaudioprocess = function(){
-        analyser.getFloatFrequencyData(freqData);
-        trueOut[currentTime] = freqData;
-        currentTime += 256 / decodedData.duration;
-        };
-
-        bufferSource.start(0);
-        offline.oncomplete = function(){
-        //console.log('analysed');
-        analyzeDone = true;
-        };
-        offline.startRendering();
-        /*
-        for (var i = 0; i < dataArray.length % 512; i++) {
-            const slicedArray = dataArray.slice(i * 512, (i + 1) * 512)
-
-            var fft = new FFT(512);
-            let realOutput = new Array(512);
-            let complexOutput = fft.createComplexArray();
-
-            fft.realTransform(complexOutput, slicedArray);
-            fft.fromComplexArray(complexOutput, realOutput);
-            trueOut[currentTime] = realOutput;
-            currentTime += timeStep;
-        }
-
-        */
-        await waitFor(() => analyzeDone == true);
-        console.log(`Our data length: ${Object.keys(trueOut).length}`)
+        bufferSource.buffer = bufferForContext;
         
+        console.log(`Channels: ${bufferForContext.numberOfChannels}\nDuration: ${bufferForContext.duration}`);
+
+        var splitter = offline.createChannelSplitter(2);
+        var merger = offline.createChannelMerger(2);
+
+        var analyserLeft = offline.createAnalyser();
+        analyserLeft.fftSize = FFT_SIZE; 
+        var analyserRight = offline.createAnalyser();
+        analyserRight.fftSize = FFT_SIZE; 
+        var scp = offline.createScriptProcessor(FFT_SIZE / 2, 0, 1);
+        var fftHandler = new FFT(FFT_SIZE);
+
+        var timerVars = {lastTime: 0, delayVal: 1 / 25};
+        var channelProcessed: {[id: string]: [any?]} = {left: [], right: [], total: []};
+
+        var freqDataArray = new Float32Array(analyserLeft.fftSize);
+        var fftBuffer = new Array();
+
+        scp.onaudioprocess = function(audioProcessingEvent: any){
+            if (audioProcessingEvent.playbackTime - timerVars.lastTime < timerVars.delayVal)
+                return;
+
+            analyserLeft.getFloatFrequencyData(freqDataArray);
+            //fftHandler.realTransform(fftBuffer, freqDataArray.fill(0, FFT_SIZE / 2 + 1, FFT_SIZE));
+            channelProcessed.left.push([audioProcessingEvent.playbackTime, Array.from(freqDataArray)]);
+
+            analyserRight.getFloatFrequencyData(freqDataArray);
+            //fftHandler.realTransform(fftBuffer, freqDataArray.fill(0, FFT_SIZE / 2 + 1, FFT_SIZE));
+            channelProcessed.right.push([audioProcessingEvent.playbackTime, Array.from(freqDataArray)]);
+
+            analyserLeft.getFloatFrequencyData(freqDataArray);
+            //fftHandler.realTransform(fftBuffer, test.fill(0, FFT_SIZE / 2 + 1, FFT_SIZE));
+            var newArr = Array.from(freqDataArray);
+            newArr.forEach(element => {
+                element *= 1000000;
+            });
+            channelProcessed.total.push(newArr);
+
+            timerVars.lastTime = audioProcessingEvent.playbackTime;
+        };
+
+        bufferSource.connect(splitter, 0, 0);
+
+        splitter.connect(analyserLeft, 0, 0);
+        splitter.connect(analyserRight, 1, 0);
+
+        analyserLeft.connect(merger, 0, 0);
+        analyserRight.connect(merger, 0, 1);
+
+        merger.connect(scp, 0, 0);
+
+        scp.connect(offline.destination, 0, 0);
+
+        bufferSource.start(0, 0, bufferForContext.duration);
+        await offline.startRendering();
+
+        //await waitFor(() => analyzeDone == true);
+        console.log(`Parse frequency data done. Array info:\nChannel left length: ${channelProcessed.left.length}\nChannel right length: ${channelProcessed.right.length}`);
+        // Compile both channels data to trueOut
+        for (let i = 0; i < channelProcessed.left.length; i++) {
+            trueOut.push([channelProcessed.left[i][0], channelProcessed.left[i][1], channelProcessed.right[i][1], [channelProcessed.total[i], 0]]);
+        }
+    }
+
         return trueOut;
     }
 

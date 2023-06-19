@@ -1,4 +1,5 @@
 import express, { Express, Request, Response } from "express";
+import compression from "compression";
 import Backend from "./Backend";
 import DiscordBot from "./DiscordBot";
 
@@ -14,6 +15,7 @@ class ServerFrontend {
         console.log("ServerFrontend initialize");
         this.ServerApp = express();
 
+        this.ServerApp.use(compression());
         this.ServerApp.get('/', (Request: Request, Response: Response) => {
             Response.send("API site for Liquid Breakout.\nCurrent APIs:\n-Whitelisting\n-ID Converter");
         });

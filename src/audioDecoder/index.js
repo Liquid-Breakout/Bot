@@ -57,12 +57,13 @@ export const decoders = {
 	}
 }
 
-async function createBuffer({channelData, sampleRate}) {
-	let audioBuffer = new AudioBuffer({
-		sampleRate,
-		length: channelData[0].length,
-		numberOfChannels: channelData.length
+
+async function createBuffer(audioData) {
+	/*let audioBuffer = new AudioBuffer({
+		sampleRate: audioData.sampleRate,
+		length: audioData.channelData[0].length,
+		numberOfChannels: audioData.channelData.length,
 	})
-	for (let ch = 0; ch < channelData.length; ch++) audioBuffer.getChannelData(ch).set(channelData[ch])
-	return audioBuffer
+	c*/
+	return audioData;
 }
