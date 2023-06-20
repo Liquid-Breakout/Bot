@@ -5,7 +5,7 @@ import decodeAudio from "./audioDecoder/index"
 import Meyda from "meyda";
 import zlib from "node:zlib"
 
-const ExternalFrequencyProcessorUrl = "https://cutymeo-frequencyprocessor.cyclic.app";
+const ExternalFrequencyProcessorUrl = "https://externalsoundfrequencyprocessor.onrender.com";
 
 function reverseString(inputStr: string): string {
     let strArray: Array<string> = inputStr.split(" ");
