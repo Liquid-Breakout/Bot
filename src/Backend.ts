@@ -380,11 +380,11 @@ class Backend {
                 }
             );
 
-        const initialAudioBuffer: ArrayBuffer = (await axios.get(audioUrl, {responseType: "arraybuffer"})).data;
-        const audioBuffer: Buffer = Buffer.from(initialAudioBuffer);
         
         let frequencyOutput: [[time: number, leftChannel: number, rightChannel: number, amplitudeSpan?: [Span: Array<number>, Length: number]]?] | string = [];
-        if (this.SelectedServerType != "WEAK") {
+        if (this.SelectedServerType != "WEAK") {  
+            const initialAudioBuffer: ArrayBuffer = (await axios.get(audioUrl, {responseType: "arraybuffer"})).data;
+            const audioBuffer: Buffer = Buffer.from(initialAudioBuffer);
             const FFT_SIZE: number = 512;
                 
             let decodedData = await decodeAudio(audioBuffer);
@@ -409,15 +409,11 @@ class Backend {
                 frequencyOutput.push([currentTime, 0, 0, [Array.from(spectrum), spectrum.length]]);
             }
         } else {
-            frequencyOutput = (await axios.post(ExternalFrequencyProcessorUrl, {data: audioBuffer}, {
-                headers: {
-                  'Content-Type': 'multipart/form-data'
-                }
-            })).data; 
+            frequencyOutput = (await axios.post(ExternalFrequencyProcessorUrl, {audioUrl: audioUrl})).data; 
         }
 
         if (Compress) {
-            frequencyOutput = zlib.deflateSync(JSON.stringify(frequencyOutput)).toString('base64');
+            frequencyOutput = zlib.deflateSync(typeof frequencyOutput != "string" ? JSON.stringify(frequencyOutput) : frequencyOutput).toString('base64');
         }
 
         return frequencyOutput;
