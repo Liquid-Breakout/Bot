@@ -383,10 +383,9 @@ class Backend {
         const initialAudioBuffer: ArrayBuffer = (await axios.get(audioUrl, {responseType: "arraybuffer"})).data;
         const audioBuffer: Buffer = Buffer.from(initialAudioBuffer);
         
+        let frequencyOutput: [[time: number, leftChannel: number, rightChannel: number, amplitudeSpan?: [Span: Array<number>, Length: number]]?] | string = [];
         if (this.SelectedServerType != "WEAK") {
             const FFT_SIZE: number = 512;
-
-            let frequencyOutput: [[time: number, leftChannel: number, rightChannel: number, amplitudeSpan?: [Span: Array<number>, Length: number]]?] | string = [];
                 
             let decodedData = await decodeAudio(audioBuffer);
             let channelData: Float32Array = decodedData.getChannelData(0);
