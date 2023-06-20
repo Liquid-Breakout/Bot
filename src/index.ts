@@ -14,8 +14,9 @@ const RobloxToken: string | undefined = process.env["LBCookie"];
 const RobloxAudioToken: string | undefined = process.env["AudioCookie"];
 const BotToken: string | undefined = process.env["BotToken"];
 const MongoDBUri: string | undefined = process.env["MongoDBUri"];
+const ServerType: string = process.env["ServerType"] || "WEAK";
 
-const TheBackend = new Backend(RobloxToken, RobloxAudioToken, MongoDBUri);
+const TheBackend = new Backend(RobloxToken, RobloxAudioToken, MongoDBUri, ServerType);
 const Bot = new DiscordBot(TheBackend, ";", BotToken);
 new ServerFrontend(TheBackend, Bot);
 Bot.start();

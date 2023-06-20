@@ -9,7 +9,6 @@
   "author": "cutymeo",
   "license": "ISC",
   "dependencies": {
-    "@descript/web-audio-js": "^0.15.3-patched.6",
     "@wasm-audio-decoders/flac": "^0.1.12",
     "@wasm-audio-decoders/ogg-vorbis": "^0.1.7",
     "axios": "^0.26.1",

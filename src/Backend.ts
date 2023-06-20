@@ -5,14 +5,7 @@ import decodeAudio from "./audioDecoder/index"
 import Meyda from "meyda";
 import zlib from "node:zlib"
 
-function waitFor(conditionFunction: any) {
-    const poll = (resolve: any) => {
-      if(conditionFunction()) resolve();
-      else setTimeout(_ => poll(resolve), 400);
-    }
-  
-    return new Promise(poll);
-  }
+const ExternalFrequencyProcessorUrl = "https://amplitudeprocessorexternal.cutymeorblx.repl.co";
 
 function reverseString(inputStr: string): string {
     let strArray: Array<string> = inputStr.split(" ");
@@ -96,6 +89,7 @@ function CreateOutput(Code: number, Message?: string | null, Data?: any) {
 class Backend {
     private _privilegeKeyGenerator: IDConverterClass;
 
+    public SelectedServerType: string
     public IDConverter: IDConverterClass;
     public RobloxToken: string;
     public RobloxAudioToken: string;
@@ -389,30 +383,38 @@ class Backend {
         const initialAudioBuffer: ArrayBuffer = (await axios.get(audioUrl, {responseType: "arraybuffer"})).data;
         const audioBuffer: Buffer = Buffer.from(initialAudioBuffer);
         
-        const FFT_SIZE: number = 512;
+        if (this.SelectedServerType != "WEAK") {
+            const FFT_SIZE: number = 512;
 
-        let frequencyOutput: [[time: number, leftChannel: number, rightChannel: number, amplitudeSpan?: [Span: Array<number>, Length: number]]?] | string = [];
-            
-        let decodedData = await decodeAudio(audioBuffer);
-        let channelData: Float32Array = decodedData.getChannelData(0);
-        let bufferStep = Math.floor(channelData.length / FFT_SIZE); // floor just in case
-        let currentTime = 0;
+            let frequencyOutput: [[time: number, leftChannel: number, rightChannel: number, amplitudeSpan?: [Span: Array<number>, Length: number]]?] | string = [];
+                
+            let decodedData = await decodeAudio(audioBuffer);
+            let channelData: Float32Array = decodedData.getChannelData(0);
+            let bufferStep = Math.floor(channelData.length / FFT_SIZE); // floor just in case
+            let currentTime = 0;
 
-        const timeDelay = 1 / 15;
-        let currentDelay = 0;
+            const timeDelay = 1 / 15;
+            let currentDelay = 0;
 
-        for (let i = 0; i < bufferStep; i++) {
-            currentTime += FFT_SIZE / decodedData.sampleRate;
-            if (currentTime < currentDelay)
-                continue;
-            currentDelay = currentTime + timeDelay;
+            for (let i = 0; i < bufferStep; i++) {
+                currentTime += FFT_SIZE / decodedData.sampleRate;
+                if (currentTime < currentDelay)
+                    continue;
+                currentDelay = currentTime + timeDelay;
 
-            let currentBufferData = channelData.slice(i * FFT_SIZE, (i + 1) * FFT_SIZE);
-            let spectrum: Float32Array = Meyda.extract('amplitudeSpectrum', currentBufferData) as any;
-            for (let j = 0; j < spectrum.length; j++) {
-                spectrum[j] /= 100; // Matches un4seen BASS (osu!lazer)
+                let currentBufferData = channelData.slice(i * FFT_SIZE, (i + 1) * FFT_SIZE);
+                let spectrum: Float32Array = Meyda.extract('amplitudeSpectrum', currentBufferData) as any;
+                for (let j = 0; j < spectrum.length; j++) {
+                    spectrum[j] /= 100; // Matches un4seen BASS (osu!lazer)
+                }
+                frequencyOutput.push([currentTime, 0, 0, [Array.from(spectrum), spectrum.length]]);
             }
-            frequencyOutput.push([currentTime, 0, 0, [Array.from(spectrum), spectrum.length]]);
+        } else {
+            frequencyOutput = (await axios.post(ExternalFrequencyProcessorUrl, {data: audioBuffer}, {
+                headers: {
+                  'Content-Type': 'multipart/form-data'
+                }
+            })).data; 
         }
 
         if (Compress) {
@@ -422,13 +424,15 @@ class Backend {
         return frequencyOutput;
     }
 
-    constructor(SetRobloxToken?: string, SetRobloxAudioToken?: string, MongoDbUrl?: string) {
+    constructor(SetRobloxToken?: string, SetRobloxAudioToken?: string, MongoDbUrl?: string, ServerType?: string) {
         if (SetRobloxToken == undefined)
             throw new Error("Backend: No Roblox Token was supplied.")
         if (SetRobloxAudioToken == undefined)
             SetRobloxAudioToken = "";
         if (MongoDbUrl == undefined)
             throw new Error("Backend: No MongoDB uri was supplied.")
+        if (ServerType == undefined)
+            ServerType = "WEAK";
 
         this.IDConverter = new IDConverterClass(
             "123456789*=+-aAbBcCdDeEfFgGhHiIjJkKlLmMnNoOpPqQrRsStTuUvVwWxXyYzZ",
@@ -441,6 +445,7 @@ class Backend {
         this.RobloxToken = SetRobloxToken;
         this.RobloxAudioToken = SetRobloxAudioToken;
         mongoose.connect(MongoDbUrl);
+        this.SelectedServerType = ServerType;
 
         console.log("Backend initialize");
     }
