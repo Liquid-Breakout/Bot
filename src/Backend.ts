@@ -364,8 +364,8 @@ class Backend {
                 this.OutputCodes.ERR_INVALID_ITEM,
                 `Cannot get sound data: Failed to obtain item data.`,
                 {
-                    "robloxErrorCode": ErrorResponse.response != null ? ErrorResponse.response.status : -1,
-                    "robloxMessage": ErrorResponse.response != null ? ErrorResponse.response.statusText : null,
+                    "robloxErrorCode": ErrorResponse && ErrorResponse.response != null ? ErrorResponse.response.status : -1,
+                    "robloxMessage": ErrorResponse && ErrorResponse.response != null ? ErrorResponse.response.statusText : ErrorResponse,
                 }
             );
         
@@ -375,8 +375,8 @@ class Backend {
                 this.OutputCodes.ERR_INVALID_ITEM,
                 `Cannot get sound data: Failed to find sound's url.`,
                 {
-                    "robloxErrorCode": ErrorResponse.response != null ? ErrorResponse.response.status : -1,
-                    "robloxMessage": ErrorResponse.response != null ? ErrorResponse.response.statusText : null,
+                    "robloxData": AssetData,
+                    "assetData": AssetData[0],
                 }
             );
 
