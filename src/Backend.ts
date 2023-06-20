@@ -409,7 +409,11 @@ class Backend {
                 frequencyOutput.push([currentTime, 0, 0, [Array.from(spectrum), spectrum.length]]);
             }
         } else {
-            frequencyOutput = (await axios.post(ExternalFrequencyProcessorUrl, {audioUrl: audioUrl})).data; 
+            try {
+                frequencyOutput = (await axios.post(ExternalFrequencyProcessorUrl, {audioUrl: audioUrl})).data; 
+            } catch (_) {
+                frequencyOutput = [];
+            }  
         }
 
         if (Compress) {
