@@ -130,6 +130,7 @@ class Backend {
         }
 
         let SessionToken: string | undefined = undefined;
+        let FetchError = "";
         try {
             await axios({
                 url: "https://auth.roblox.com/v2/logout",
@@ -140,11 +141,14 @@ class Backend {
             });
         } catch (AxiosResponse: any) {
             SessionToken = AxiosResponse.response ? AxiosResponse.response.headers["x-csrf-token"] : undefined;
+            if (AxiosResponse && !AxiosResponse.response) {
+                FetchError = AxiosResponse;
+            }
         }
         if (SessionToken == undefined)
             return CreateOutput(
                 this.OutputCodes.ERR_NO_SESSION_TOKEN,
-                `Cannot whitelist: Failed to obtain session token.\nContact the developer.\nDebug: Response: ${SessionToken.toString()}`
+                `Cannot whitelist: Failed to obtain session token.\nContact the developer.\n${FetchError}`
             );
         
         let ItemData, ErrorResponse;
