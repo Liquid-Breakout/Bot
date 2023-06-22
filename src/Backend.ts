@@ -144,7 +144,7 @@ class Backend {
         if (SessionToken == undefined)
             return CreateOutput(
                 this.OutputCodes.ERR_NO_SESSION_TOKEN,
-                `Cannot whitelist: Failed to obtain session token.\nContact the developer.\nDebug: Response: ${AxiosResponse.toString()}`
+                `Cannot whitelist: Failed to obtain session token.\nContact the developer.\nDebug: Response: ${SessionToken.toString()}`
             );
         
         let ItemData, ErrorResponse;
