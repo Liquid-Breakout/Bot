@@ -148,7 +148,7 @@ class Backend {
         if (SessionToken == undefined)
             return CreateOutput(
                 this.OutputCodes.ERR_NO_SESSION_TOKEN,
-                `Cannot whitelist: Failed to obtain session token.\nContact the developer.\n${FetchError}`
+                `Cannot whitelist: ${FetchError != "" ? "An error occured while attempting to call Roblox's API." : "Failed to obtain session token.\nContact the developer."}\n${FetchError}`
             );
         
         let ItemData, ErrorResponse;
@@ -161,7 +161,7 @@ class Backend {
         if (!ItemData)
             return CreateOutput(
                 this.OutputCodes.ERR_INVALID_ITEM,
-                `Cannot whitelist: Failed to obtain item data.`,
+                `Cannot whitelist: Failed to obtain item data.\n${ErrorResponse.response ? ErrorResponse.response.statusText : ErrorResponse}`,
                 {
                     "robloxErrorCode": ErrorResponse.response != null ? ErrorResponse.response.status : -1,
                     "robloxMessage": ErrorResponse.response != null ? ErrorResponse.response.statusText : null,
