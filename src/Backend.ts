@@ -139,12 +139,12 @@ class Backend {
                 },
             });
         } catch (AxiosResponse: any) {
-            SessionToken = AxiosResponse.response.headers["x-csrf-token"];
+            SessionToken = AxiosResponse.response ? AxiosResponse.response.headers["x-csrf-token"] : undefined;
         }
         if (SessionToken == undefined)
             return CreateOutput(
                 this.OutputCodes.ERR_NO_SESSION_TOKEN,
-                "Cannot whitelist: Failed to obtain session token.\nContact the developer."
+                `Cannot whitelist: Failed to obtain session token.\nContact the developer.\nDebug: Response: ${AxiosResponse.toString()}`
             );
         
         let ItemData, ErrorResponse;
