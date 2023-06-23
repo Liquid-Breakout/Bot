@@ -124,7 +124,7 @@ class Backend {
         let FetchError = "";
         try {
             await axios({
-                url: "https://auth.roblox.com/v1/logout",
+                url: "https://auth.roblox.com/v2/login",
                 method: "POST",
                 headers: {
                     cookie: `.ROBLOSECURITY=${Cookie}`,
