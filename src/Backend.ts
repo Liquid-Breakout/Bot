@@ -137,10 +137,10 @@ class Backend {
             }
         }
         if (SessionToken == undefined)
-            return false, CreateOutput(
+            return [false, CreateOutput(
                 this.OutputCodes.ERR_NO_SESSION_TOKEN,
                 `Cannot whitelist: ${FetchError != "" ? "An error occured while attempting to call Roblox's API." : "Failed to obtain session token.\nContact the developer."}\n${FetchError}`
-            );
+            )];
         return [true, SessionToken];
     }
     public async WhitelistAsset(AssetId: number, UserId: number) {
