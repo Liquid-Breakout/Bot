@@ -25,6 +25,10 @@ class IDConverterClass {
     private _alphabets: {"alphabet": string, "decimals": string}
     
     private convert(inputStr: string, translation: string, newTranslation: string, shift: boolean): string {
+        if (!inputStr || !translation || !newTranslation) {
+            return "";
+        }
+
         let x: number = 0;
         let baseValue: number = translation.length;
     
@@ -115,6 +119,30 @@ class Backend {
             return false;
         }
     }
+    public async GetSessionToken(Cookie: string) {
+        let SessionToken: string | undefined = undefined;
+        let FetchError = "";
+        try {
+            await axios({
+                url: "https://auth.roblox.com/v1/logout",
+                method: "POST",
+                headers: {
+                    cookie: `.ROBLOSECURITY=${Cookie}`,
+                },
+            });
+        } catch (AxiosResponse: any) {
+            SessionToken = AxiosResponse.response ? AxiosResponse.response.headers["x-csrf-token"] : undefined;
+            if (AxiosResponse && !AxiosResponse.response) {
+                FetchError = AxiosResponse;
+            }
+        }
+        if (SessionToken == undefined)
+            return false, CreateOutput(
+                this.OutputCodes.ERR_NO_SESSION_TOKEN,
+                `Cannot whitelist: ${FetchError != "" ? "An error occured while attempting to call Roblox's API." : "Failed to obtain session token.\nContact the developer."}\n${FetchError}`
+            );
+        return true, SessionToken;
+    }
     public async WhitelistAsset(AssetId: number, UserId: number) {
         const CreatorOwnedItem = await this.CheckIfUserOwnItem(AssetId, 138801491);
         if (CreatorOwnedItem)
@@ -129,28 +157,10 @@ class Backend {
             );
         }
 
-        let SessionToken: string | undefined = undefined;
-        let FetchError = "";
-        try {
-            await axios({
-                url: "https://auth.roblox.com/v2/logout",
-                method: "POST",
-                headers: {
-                    cookie: `.ROBLOSECURITY=${this.RobloxToken}`,
-                },
-            });
-        } catch (AxiosResponse: any) {
-            SessionToken = AxiosResponse.response ? AxiosResponse.response.headers["x-csrf-token"] : undefined;
-            if (AxiosResponse && !AxiosResponse.response) {
-                FetchError = AxiosResponse;
-            }
-        }
-        if (SessionToken == undefined)
-            return CreateOutput(
-                this.OutputCodes.ERR_NO_SESSION_TOKEN,
-                `Cannot whitelist: ${FetchError != "" ? "An error occured while attempting to call Roblox's API." : "Failed to obtain session token.\nContact the developer."}\n${FetchError}`
-            );
-        
+        let FetchSessionSuccess, SessionToken = await this.GetSessionToken(this.RobloxToken);
+        if (!FetchSessionSuccess)
+            return SessionToken
+
         let ItemData, ErrorResponse;
         try {
             ItemData = (await axios({
@@ -303,35 +313,13 @@ class Backend {
     }
 
     public async GetSoundFrequenciesData(SoundId: number, Compress: boolean) {
-        let SessionToken: string | undefined = undefined;
-        try {
-            await axios({
-                url: "https://auth.roblox.com/v2/logout",
-                method: "POST",
-                headers: {
-                    cookie: `.ROBLOSECURITY=${this.RobloxToken}`,
-                },
-            });
-        } catch (AxiosResponse: any) {
-            SessionToken = AxiosResponse.response.headers["x-csrf-token"];
+        let FetchSessionSuccess, SessionToken = await this.GetSessionToken(this.RobloxToken);
+
+        if (!FetchSessionSuccess) {
+            FetchSessionSuccess, SessionToken = await this.GetSessionToken(this.RobloxAudioToken);
+            if (!FetchSessionSuccess)
+                return SessionToken;
         }
-        if (SessionToken == undefined)
-            try {
-                await axios({
-                    url: "https://auth.roblox.com/v2/logout",
-                    method: "POST",
-                    headers: {
-                        cookie: `.ROBLOSECURITY=${this.RobloxAudioToken}`,
-                    },
-                });
-            } catch (AxiosResponse: any) {
-                SessionToken = AxiosResponse.response.headers["x-csrf-token"];
-            }
-            if (SessionToken == undefined)
-                return CreateOutput(
-                    this.OutputCodes.ERR_NO_SESSION_TOKEN,
-                    "Cannot whitelist: Failed to obtain session token.\nContact the developer."
-                );
         
         let AssetData, ErrorResponse;
         try {
