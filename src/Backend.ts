@@ -119,7 +119,7 @@ class Backend {
             return false;
         }
     }
-    public async GetSessionToken(Cookie: string): [boolean, any] {
+    public async GetSessionToken(Cookie: string): Promise<[boolean, any]> {
         let SessionToken: string | undefined = undefined;
         let FetchError = "";
         try {
