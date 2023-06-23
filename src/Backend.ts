@@ -119,7 +119,7 @@ class Backend {
             return false;
         }
     }
-    public async GetSessionToken(Cookie: string) {
+    public async GetSessionToken(Cookie: string): [boolean, any] {
         let SessionToken: string | undefined = undefined;
         let FetchError = "";
         try {
@@ -141,7 +141,7 @@ class Backend {
                 this.OutputCodes.ERR_NO_SESSION_TOKEN,
                 `Cannot whitelist: ${FetchError != "" ? "An error occured while attempting to call Roblox's API." : "Failed to obtain session token.\nContact the developer."}\n${FetchError}`
             );
-        return true, SessionToken;
+        return [true, SessionToken];
     }
     public async WhitelistAsset(AssetId: number, UserId: number) {
         const CreatorOwnedItem = await this.CheckIfUserOwnItem(AssetId, 138801491);
@@ -157,7 +157,7 @@ class Backend {
             );
         }
 
-        let FetchSessionSuccess, SessionToken = await this.GetSessionToken(this.RobloxToken);
+        let [FetchSessionSuccess, SessionToken] = await this.GetSessionToken(this.RobloxToken);
         if (!FetchSessionSuccess)
             return SessionToken
 
@@ -313,10 +313,10 @@ class Backend {
     }
 
     public async GetSoundFrequenciesData(SoundId: number, Compress: boolean) {
-        let FetchSessionSuccess, SessionToken = await this.GetSessionToken(this.RobloxToken);
+        let [FetchSessionSuccess, SessionToken] = await this.GetSessionToken(this.RobloxToken);
 
         if (!FetchSessionSuccess) {
-            FetchSessionSuccess, SessionToken = await this.GetSessionToken(this.RobloxAudioToken);
+            [FetchSessionSuccess, SessionToken] = await this.GetSessionToken(this.RobloxAudioToken);
             if (!FetchSessionSuccess)
                 return SessionToken;
         }
