@@ -212,6 +212,12 @@ class DiscordBot {
     }
 
     public start() {
+        this._client.on("ready", () => {
+            this.Alive = true;
+            console.log("DiscordBot: Ready for command");
+            this.UpdatePresence("Pending");
+        });
+        this._client.on("messageCreate", (async (Message: Message): Promise<any> => this.OnMessage(Message)));
         this._client.login(this._token);
         this.UpdatePresence("Pending");
 
@@ -238,13 +244,6 @@ class DiscordBot {
         this._token = BotToken;
         this.Prefix = Prefix
         this.Alive = false;
-
-        this._client.on("ready", () => {
-            this.Alive = true;
-            console.log("DiscordBot: Ready for command");
-            this.UpdatePresence("Pending");
-        });
-        this._client.on("messageCreate", (async (Message: Message): Promise<any> => this.OnMessage(Message)));
         
         console.log("DiscordBot initialize");
     }
