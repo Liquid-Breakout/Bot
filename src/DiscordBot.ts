@@ -139,7 +139,7 @@ class DiscordBot {
 
         for (const file of commandFiles) {
             const filePath = path.join(commandsPath, file);
-            const command = require(filePath);
+            let command = require(filePath);
             if (command.isTemplate)
                 continue;
             if (command.execute) {
@@ -152,6 +152,7 @@ class DiscordBot {
             } else {
                 console.log(`DiscordBot: Cannot load command file ${file} as it's missing data.`)
             }
+            command = null;
         }
         
         console.log("DiscordBot initialize");

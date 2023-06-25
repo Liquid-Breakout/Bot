@@ -8,7 +8,7 @@ class ServerFrontend {
     private _discordBot: DiscordBot;
     public ServerApp: Express;
 
-    constructor(Backend: any, DiscordBot: any) {
+    constructor(Backend: Backend, DiscordBot: DiscordBot) {
         this._backend = Backend;
         this._discordBot = DiscordBot;
 
