@@ -39,7 +39,7 @@ class DiscordBot {
     }
 
     public async OnMessage(Message: Message): Promise<any> {
-        if (!Message || !Message.content.startsWith(this.Prefix) || !this.Alive)
+        if (!Message || !Message.content.startsWith(this.Prefix) || Message.author.bot || !this.Alive)
             return;
 
         const Arguments: string[] = Message.content.slice(this.Prefix.length).trim().split(/ +/);
