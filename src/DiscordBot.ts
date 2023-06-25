@@ -148,7 +148,7 @@ class DiscordBot {
                 if (command.slashData)
                     this._commandsData.push(command.slashData);
 
-                console.log(`DiscordBot: Loaded command file ${file} with name: ${commandName}`)
+                //console.log(`DiscordBot: Loaded command file ${file} with name: ${commandName}`)
             } else {
                 console.log(`DiscordBot: Cannot load command file ${file} as it's missing data.`)
             }
