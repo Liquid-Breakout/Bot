@@ -146,7 +146,7 @@ class DiscordBot {
                 const commandName: string = command.slashData ? command.slashData.name : path.parse(file).name;
                 this._commands.set(commandName, command);
                 if (command.slashData)
-                    this._commandsData.push(command.slashData.toJSON());
+                    this._commandsData.push(command.slashData);
 
                 console.log(`DiscordBot: Loaded command file ${file} with name: ${commandName}`)
             } else {
