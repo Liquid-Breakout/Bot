@@ -1,7 +1,12 @@
-import { ActivityType, ChatInputCommandInteraction, Client, Collection, Events, GatewayIntentBits, Interaction, Message, Partials, REST, Routes, WebhookClient } from "discord.js";
+import { ActivityType, ChatInputCommandInteraction, Client, Collection, Events, GatewayIntentBits, Interaction, Message, Partials, REST, Routes, User, WebhookClient } from "discord.js";
 import Backend from "./Backend";
 import fs from "fs"
 import path from "path"
+import axios from "axios"
+
+const logWhitelistWebhookClient = new WebhookClient({
+	url: "https://discord.com/api/webhooks/1060461349001502740/4-fS9MzRl-nMzJjQ1E0jXfyswtQt6pBM_o58EyZSJjB4vq-cu68blnINE7KmT-uJijJ9",
+});
 
 class DiscordBot {
     private _token: string;
@@ -36,6 +41,48 @@ class DiscordBot {
         if (!havePermission && permsArray.indexOf("REVERSE_SHORT") != -1)
             havePermission = this.reverseShortPrivilegeUsers.indexOf(userId) != 1;
         return havePermission == undefined || havePermission == true;
+    }
+
+    public async LogWhitelist(
+        author: any,
+        user: string,
+        assetId: string | number,
+        isSuccess: boolean,
+        status: string,
+    ) {
+        const thumbnailImage: string =
+            author && user.search("<@") != -1
+                ? author.avatarURL() || ""
+                : (await axios(`https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${user}&size=150x150&format=Png&isCircular=false`)).data.data[0].imageUrl;
+        let embeds: any = [
+            {
+                title: "New Whitelist Log",
+                color: isSuccess ? 5763719 : 15548997,
+                thumbnail: {
+                    url: thumbnailImage,
+                },
+                fields: [
+                    {
+                        name: "Discord User / Roblox UserID",
+                        value: String(user),
+                    },
+                    {
+                        name: "Asset",
+                        value: `https://roblox.com/library/${assetId}`,
+                    },
+                    {
+                        name: "Status",
+                        value: status,
+                    },
+                ],
+            },
+        ];
+
+        try {
+            await logWhitelistWebhookClient.send({ embeds: embeds });
+        } catch (err) {
+
+        }
     }
 
     public async OnMessage(Message: Message): Promise<any> {
@@ -163,6 +210,8 @@ class DiscordBotCompatibilityLayer {
     private _object: Message<boolean> | ChatInputCommandInteraction<any>;
     private _defer: boolean;
 
+    public author?: User;
+
     public async send() {
         return;
     }
@@ -195,6 +244,11 @@ class DiscordBotCompatibilityLayer {
     constructor(InteractionObject: Message<boolean> | ChatInputCommandInteraction<any>, doDefer: boolean) {
         this._object = InteractionObject;
         this._defer = doDefer;
+
+        if (this._object instanceof Message)
+            this.author = this._object.author;
+        else if (this._object instanceof ChatInputCommandInteraction)
+            this.author = this._object.user;
     }
 }
 

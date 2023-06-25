@@ -26,6 +26,11 @@ module.exports = {
         else
             await newLayer.reply(`Error while whitelisting!\nCode: ${Bot.Backend.LookupNameByOutputCode(WhitelistOutput.code)}${WhitelistOutput.message != undefined ? `\n${WhitelistOutput.message}` : ""}`)
         
+        if (WhitelistOutput.code == Bot.Backend.OutputCodes.OPERATION_SUCCESS || WhitelistOutput.code == Bot.Backend.OutputCodes.ALREADY_WHITELISTED)
+            await Bot.LogWhitelist(newLayer.author, `<@${newLayer.author?.id}>`, RequestAssetId, true, WhitelistOutput.message)
+        else
+            await Bot.LogWhitelist(newLayer.author, `<@${newLayer.author?.id}>`, RequestAssetId, false, `Code: ${Bot.Backend.LookupNameByOutputCode(WhitelistOutput.code)}\n${WhitelistOutput.message}`)
+
         if (Interaction instanceof Message && Interaction.guild != null)
             newLayer.delete();
 	},

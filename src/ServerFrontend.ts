@@ -33,7 +33,13 @@ class ServerFrontend {
 				return;
             }
 
-            Response.send(await this._backend.WhitelistAsset(AssetId, UserId));
+            let backendResponse = await this._backend.WhitelistAsset(AssetId, UserId);
+            if (backendResponse.code == this._backend.OutputCodes.OPERATION_SUCCESS || backendResponse.code == this._backend.OutputCodes.ALREADY_WHITELISTED)
+                this._discordBot.LogWhitelist(null, UserId.toString(), AssetId, true, backendResponse.message)
+            else
+                this._discordBot.LogWhitelist(null, UserId.toString(), AssetId, false, `Code: ${this._backend.LookupNameByOutputCode(backendResponse.code)}\n${backendResponse.message}`)
+
+            Response.send(backendResponse);
         });
         this.ServerApp.get('/getshareableid', (Request: Request, Response: Response) => {
             const RequestQuery = Request.query;
