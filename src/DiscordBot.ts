@@ -1,252 +1,200 @@
-import { AnyChannel, Client, Intents, Message, TextChannel, WebhookClient } from "discord.js";
+import { ActivityType, ChatInputCommandInteraction, Client, Collection, Events, GatewayIntentBits, Interaction, Message, Partials, REST, Routes, WebhookClient } from "discord.js";
 import Backend from "./Backend";
+import fs from "fs"
+import path from "path"
 
 class DiscordBot {
-    private _backend: Backend;
-    private _client: Client;
-
     private _token: string;
+    private _clientId: string;
     
     private privilegeUsers: string[] = ["915410908921077780", "849118831251030046"];
     private reverseShortPrivilegeUsers: string[] = ["915410908921077780", "849118831251030046", "324812431165751298"];
+    private _commands: Collection<string, any>;
+    private _commandsData: any[];
 
+    public Backend: Backend;
+    public Client: Client;
     public Alive: boolean;
     public Prefix: string;
 
     public UpdatePresence(ActivityName: string) {
-        let botUser = this._client.user;
+        let botUser = this.Client.user;
         if (botUser) {
-            botUser.setActivity(`Rewrite | ${ActivityName} | Run ${this.Prefix}help | Made by cutymeo.`, {
-                type: "WATCHING",
+            botUser.setActivity(`${ActivityName} | Made by shiinazzz (cutymeo).`, {
+                type: ActivityType.Watching,
             });
         }
+    }
+
+    private _checkUserPermissions(userId: string, permsArray?: string[]) {
+        if (!permsArray)
+            return true;
+
+        let havePermission = undefined;
+        if (!havePermission && permsArray.indexOf("PRIVILEGE") != -1)
+            havePermission = this.privilegeUsers.indexOf(userId) != 1;
+        if (!havePermission && permsArray.indexOf("REVERSE_SHORT") != -1)
+            havePermission = this.reverseShortPrivilegeUsers.indexOf(userId) != 1;
+        return havePermission == undefined || havePermission == true;
     }
 
     public async OnMessage(Message: Message): Promise<any> {
         if (!Message || !Message.content.startsWith(this.Prefix) || !this.Alive)
             return;
+
         const Arguments: string[] = Message.content.slice(this.Prefix.length).trim().split(/ +/);
         let CommandName: string | undefined = Arguments.shift();
         if (!CommandName) return;
         CommandName = CommandName.toLowerCase();
 
         this.UpdatePresence(`Processing ${CommandName} for ${Message.author.tag}`);
-    
-        if (CommandName == "whitelist") {
-            const RequestAssetId: number | undefined = Arguments[0] ? parseInt(Arguments[0]) : undefined;
-
-            if (!RequestAssetId) {
-                this.UpdatePresence("Pending.");
-                return Message.reply("Asset ID must be a number.");
+        const command = this._commands.get(CommandName);
+        if (command) {
+            if (!this._checkUserPermissions(Message.author.id, command.requires)) {
+                return new DiscordBotCompatibilityLayer(Message, false).reply(`You do not have permission to run this command!\nCommand permission: [${command.requires.join(", ")}]`);
             }
-            const WhitelistOutput = await this._backend.WhitelistAsset(RequestAssetId, NaN);
-            this.UpdatePresence("Pending.");
-            if (WhitelistOutput.code == this._backend.OutputCodes.OPERATION_SUCCESS) {
-                const shareableId: number | undefined = WhitelistOutput.data ? WhitelistOutput.data["shareableId"] : undefined;
-                await Message.reply(`Whitelisted successfully!${shareableId != undefined ? ` Your shareable ID is: \`\`${shareableId}\`\`` : ""}`);
-            } else if (WhitelistOutput.code == this._backend.OutputCodes.ALREADY_WHITELISTED)
-                await Message.reply(`Already whitelisted. Use ${this.Prefix}getshareid to get the shareable ID.`);
-            else
-                await Message.reply(`Error while whitelisting!\nCode: ${this._backend.LookupNameByOutputCode(WhitelistOutput.code)}${WhitelistOutput.message != undefined ? `\n${WhitelistOutput.message}` : ""}`)
-            if (Message.guild != null)
-                Message.delete();
-        } else if (CommandName == "test") {
-            this.UpdatePresence("Pending.");
-            Message.reply("Hello! I'm alive!");
-        } else if (CommandName == "shutdown") {
-            if (this.privilegeUsers.indexOf(Message.author.id) == -1)
-                return Message.reply("You cannot use this command!");
-            this.UpdatePresence("Pending.");
-            await Message.reply("Force shutting down...");
-            this._client.destroy();
-            this.Alive = false;
-        } else if (CommandName == "broadcast") {
-            if (this.privilegeUsers.indexOf(Message.author.id) == -1) return Message.reply("You cannot use this command!");
-            const BroadcastMessage: string = Arguments.join(" ");
-            const BroadcastChannel: string = "1041032381668282450";
-            Message.reply(`Broadcasting "${BroadcastMessage}"...`);
-
-            const gotChannel: AnyChannel | undefined = this._client.channels.cache.get(BroadcastChannel);
-            if (gotChannel) 
-                (gotChannel as TextChannel).send(BroadcastMessage);
-
-            this.UpdatePresence("Pending.");
-        } else if (CommandName == "getshareid") {
-            await Message.reply(`Your shareable ID is: \`\`${this._backend.IDConverter.Short(Arguments[0])}\`\``);
-            if (Message.guild != null)
-                Message.delete();
-
-            this.UpdatePresence("Pending.");
-        } else if (CommandName == "getnumberid") {
-            if (this.reverseShortPrivilegeUsers.indexOf(Message.author.id) == -1)
-                return Message.reply("You cannot use this command!");
-            await Message.reply(`\`\`${Arguments[0]}\`\` converted to \`\`${this._backend.IDConverter.Number(Arguments[0])}\`\``);
-            if (Message.guild != null)
-                Message.delete();
-
-            this.UpdatePresence("Pending.");
-        } else if (CommandName == "help") {
-            Message.reply(";help: This Message\n;whitelist [id]: Whitelist a map\n;getshareid [id]: Create a shareable ID (Short ID in FE2CM terms).");
-            this.UpdatePresence("Pending.");
-        } else if (CommandName == "createapikey") {
-            if (this.privilegeUsers.indexOf(Message.author.id) == -1)
-                return Message.reply("You cannot use this command!");
-            const newKey = await this._backend.CreateApiKeyEntry();
-            Message.reply(`Successfully created new key, your key is: \`\`${newKey}\`\``);
-            this.UpdatePresence("Pending.");
-        } else if (CommandName == "assignkeyownership") {
-            const SelectedApiKey: string | undefined = Arguments[0] || undefined;
-            if (!SelectedApiKey) {
-                this.UpdatePresence("Pending.");
-                return Message.reply("An API key must be provided.");
+            try {
+                await command.execute(this, Message, Arguments);
+            } catch (err) {
+                new DiscordBotCompatibilityLayer(Message, false).reply(`Failed to complete command, error: ${err}`);
             }
-            const AssignOwner: string | undefined = Arguments[1] || undefined;
-            if (!AssignOwner) {
-                this.UpdatePresence("Pending.");
-                return Message.reply("A username must be provided.");
-            }
-
-            const output = await this._backend.SetApiKeyEntryValue("byKey", SelectedApiKey, "assignOwner", AssignOwner);
-            if (output.code == this._backend.OutputCodes.OPERATION_SUCCESS)
-                Message.reply(`Successfully assigned \`\`${AssignOwner}\`\` to \`\`${SelectedApiKey}\`\``);
-            else
-                Message.reply(`Failed to assign, error: ${output.message}`);
-            
-            this.UpdatePresence("Pending.");
-        } else if (CommandName == "assignkeydiscord") {
-            const SelectedApiKey: string | undefined = Arguments[0] || undefined;
-            if (!SelectedApiKey) {
-                this.UpdatePresence("Pending.");
-                return Message.reply("An API key must be provided.");
-            }
-            const AssignOwner: number | undefined = Arguments[1] ? parseInt(Arguments[1]) : undefined;;
-            if (!AssignOwner) {
-                this.UpdatePresence("Pending.");
-                return Message.reply("Discord user ID must be a number.");
-            }
-
-            const output = await this._backend.SetApiKeyEntryValue("byKey", SelectedApiKey, "associatedDiscordUser", AssignOwner.toString());
-            if (output.code == this._backend.OutputCodes.OPERATION_SUCCESS)
-                Message.reply(`Successfully assigned \`\`${AssignOwner}\`\` to \`\`${SelectedApiKey}\`\``);
-            else
-                Message.reply(`Failed to assign, error: ${output.message}`);
-                
-            this.UpdatePresence("Pending.");
-        } else if (CommandName == "swapapikey") {
-            const SelectedApiKey: string | undefined = Arguments[0] || undefined;
-            if (!SelectedApiKey) {
-                this.UpdatePresence("Pending.");
-                return Message.reply("An API key must be provided.");
-            }
-            const NewApiKey: string | undefined = Arguments[1] || undefined;
-            if (!NewApiKey) {
-                this.UpdatePresence("Pending.");
-                return Message.reply("A new API key must be provided.");
-            }
-
-            const output = await this._backend.SetApiKeyEntryValue("byKey", SelectedApiKey, "value", NewApiKey);
-            if (output.code == this._backend.OutputCodes.OPERATION_SUCCESS)
-                Message.reply(`Switched \`\`${NewApiKey}\`\` to \`\`${SelectedApiKey}\`\``);
-            else
-                Message.reply(`Failed to assign, error: ${output.message}`);
-                
-            this.UpdatePresence("Pending.");
-        } else if (CommandName == "findapikeysfromuser") {
-            const SearchValue: string | undefined = Arguments[0] || undefined;
-            if (!SearchValue) {
-                this.UpdatePresence("Pending.");
-                return Message.reply("A search string must be provided.");
-            }
-
-            const documents = await this._backend.GetApiKeysFromUser(SearchValue);
-            var keys: any[] = [];
-            documents.forEach(async (document) => keys.push(`\`\`${document.value}\`\``));
-
-            if (keys.length > 0)
-                Message.reply(`Found ${keys.length} key(s): ${keys.join(", ")}`);
-            else
-                Message.reply("No keys found.")
-                
-            this.UpdatePresence("Pending.");
-        } else if (CommandName == "toggleapikey") {
-            const SelectedApiKey: string | undefined = Arguments[0] || undefined;
-            if (!SelectedApiKey) {
-                this.UpdatePresence("Pending.");
-                return Message.reply("An API key must be provided.");
-            }
-            const ToggleValue: string | undefined = Arguments[1] || undefined;
-            if (!ToggleValue || (ToggleValue != "false" && ToggleValue != "true")) {
-                this.UpdatePresence("Pending.");
-                return Message.reply("Toggle value must be either true or false.");
-            }
-
-            const trueToggle = ToggleValue == "true" ? true : false;
-            const output = await this._backend.SetApiKeyEntryValue("byKey", SelectedApiKey, "enabled", trueToggle);
-            if (output.code == this._backend.OutputCodes.OPERATION_SUCCESS)
-                Message.reply(`Successfully toggled \`\`${SelectedApiKey}\`\` enabled value to \`\`${ToggleValue}\`\``);
-            else
-                Message.reply(`Failed to toggle, error: ${output.message}`);
-                
-            this.UpdatePresence("Pending.");
-        } else if (CommandName == "toggleapikeybyuser") {
-            const User: string | undefined = Arguments[0] || undefined;
-            if (!User) {
-                this.UpdatePresence("Pending.");
-                return Message.reply("User must be a string.");
-            }
-            const ToggleValue: string | undefined = Arguments[1] || undefined;
-            if (!ToggleValue || (ToggleValue != "false" && ToggleValue != "true")) {
-                this.UpdatePresence("Pending.");
-                return Message.reply("Toggle value must be either true or false.");
-            }
-
-            const trueToggle = ToggleValue == "true" ? true : false;
-            const output = await this._backend.SetApiKeyEntryValue("byOwner", User, "enabled", trueToggle);
-            if (output.code == this._backend.OutputCodes.OPERATION_SUCCESS)
-                Message.reply(`Successfully toggled ${User}'s api keys enabled value to \`\`${ToggleValue}\`\``);
-            else
-                Message.reply(`Failed to toggle, error: ${output.message}`);
-                
-            this.UpdatePresence("Pending.");
         }
+        this.UpdatePresence("Pending.");
     }
 
-    public start() {
-        this._client.on("ready", () => {
+    public async OnInteraction(Interaction: Interaction<any>): Promise<any> {
+        if (!Interaction.isChatInputCommand()) return;
+        
+        this.UpdatePresence(`Processing ${Interaction.commandName} for ${Interaction.user.tag}`);
+        const command = this._commands.get(Interaction.commandName);
+        if (command && command.slashData) {
+            if (!this._checkUserPermissions(Interaction.user.id, command.requires)) {
+                return new DiscordBotCompatibilityLayer(Interaction, false).reply(`You do not have permission to run this command!\nCommand permission: [${command.requires.join(", ")}]`);
+            }
+            try {
+                await command.execute(this, Interaction, []);
+            } catch (err) {
+                new DiscordBotCompatibilityLayer(Interaction, false).reply(`Failed to complete command, error: ${err}`);
+            }
+        }
+        this.UpdatePresence("Pending.");
+    }
+
+    public async start() {
+        // Registering commands
+        const botRest = new REST().setToken(this._token);
+        const data: any = await botRest.put(
+			Routes.applicationCommands(this._clientId),
+			{ body: this._commandsData },
+		);
+
+		console.log(`DiscordBot: Successfully registered ${data.length} slash commands.`);
+
+        // Register events
+        this.Client.on(Events.ClientReady, () => {
             this.Alive = true;
             console.log("DiscordBot: Ready for command");
             this.UpdatePresence("Pending");
         });
-        this._client.on("messageCreate", (async (Message: Message): Promise<any> => this.OnMessage(Message)));
-        this._client.login(this._token);
+        this.Client.on(Events.MessageCreate, (async (Message: Message): Promise<any> => this.OnMessage(Message)));
+        this.Client.on(Events.InteractionCreate, async (Interaction: Interaction<any>) => this.OnInteraction(Interaction));
+        
+        // Login
+        this.Client.login(this._token);
         this.UpdatePresence("Pending");
 
         console.log("DiscordBot: Login success, bot ready");
     }
 
-    constructor(Backend: any, Prefix: string, BotToken?: string) {
+    constructor(Backend: any, Prefix: string, BotToken?: string, ClientId?: string) {
         if (BotToken == undefined)
             throw new Error("DiscordBot: No Bot Token was supplied.")
+        if (ClientId == undefined)
+            throw new Error("DiscordBot: No Client ID was supplied.")
             
-        this._backend = Backend;
-        this._client = new Client({
-            partials: ["CHANNEL"],
+        this.Backend = Backend;
+        this.Client = new Client({
+            partials: [Partials.Channel],
             intents: [
-                Intents.FLAGS.GUILDS,
-                Intents.FLAGS.GUILD_MESSAGES,
-                Intents.FLAGS.DIRECT_MESSAGES,
-                Intents.FLAGS.GUILD_MESSAGE_REACTIONS,
-                Intents.FLAGS.GUILD_MESSAGE_TYPING,
-                Intents.FLAGS.DIRECT_MESSAGE_REACTIONS,
-                Intents.FLAGS.DIRECT_MESSAGE_TYPING,
+                GatewayIntentBits.Guilds,
+                GatewayIntentBits.GuildMessages,
+                GatewayIntentBits.DirectMessages,
+                GatewayIntentBits.GuildMessageReactions,
+                GatewayIntentBits.GuildMessageTyping,
+                GatewayIntentBits.DirectMessageReactions,
+                GatewayIntentBits.DirectMessageTyping,
+                GatewayIntentBits.MessageContent
             ],
         });
         this._token = BotToken;
+        this._clientId = ClientId;
         this.Prefix = Prefix
         this.Alive = false;
+
+        // Load the commands
+        this._commands = new Collection();
+        this._commandsData = [];
+        const commandsPath = path.join(__dirname, 'BotCommands');
+        const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.ts'));
+
+        for (const file of commandFiles) {
+            const filePath = path.join(commandsPath, file);
+            const command = require(filePath);
+            if (command.isTemplate)
+                continue;
+            if (command.execute) {
+                const commandName: string = command.slashData ? command.slashData.name : path.parse(file).name;
+                this._commands.set(commandName, command);
+                if (command.slashData)
+                    this._commandsData.push(command.slashData.toJSON());
+
+                console.log(`DiscordBot: Loaded command file ${file} with name: ${commandName}`)
+            } else {
+                console.log(`DiscordBot: Cannot load command file ${file} as it's missing data.`)
+            }
+        }
         
         console.log("DiscordBot initialize");
     }
 }
 
-export default DiscordBot;
+class DiscordBotCompatibilityLayer {
+    private _object: Message<boolean> | ChatInputCommandInteraction<any>;
+    private _defer: boolean;
+
+    public async send() {
+        return;
+    }
+
+    public async reply(options: any) {
+        if (this._object instanceof Message)
+            return await this._object.reply(options);
+        else if (this._object instanceof ChatInputCommandInteraction) {
+            if (this._object.deferred)
+                if (this._object.replied)
+                    return await this._object.followUp(options);
+                else
+                    return await this._object.editReply(options);
+            else
+                return await this._object.reply(options);
+        }
+    }
+
+    public async delete() {
+        if (this._object instanceof Message)
+            return await this._object.delete();
+        return;
+    }
+
+    public async init(ephemeral?: boolean) {
+        if (this._defer && this._object instanceof ChatInputCommandInteraction)
+            await this._object.deferReply({ ephemeral: ephemeral ? ephemeral : true });
+    }
+
+    constructor(InteractionObject: Message<boolean> | ChatInputCommandInteraction<any>, doDefer: boolean) {
+        this._object = InteractionObject;
+        this._defer = doDefer;
+    }
+}
+
+export {DiscordBot, DiscordBotCompatibilityLayer};

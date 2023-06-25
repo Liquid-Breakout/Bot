@@ -1,7 +1,7 @@
 import express, { Express, Request, Response } from "express";
 import compression from "compression";
 import Backend from "./Backend";
-import DiscordBot from "./DiscordBot";
+import { DiscordBot } from "./DiscordBot";
 
 class ServerFrontend {
     private _backend: Backend;
