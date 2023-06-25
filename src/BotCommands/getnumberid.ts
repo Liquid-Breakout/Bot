@@ -6,7 +6,7 @@ module.exports = {
 	slashData: new SlashCommandBuilder()
 		.setName("getnumberid")
 		.setDescription("Retrive the numeric ID representation of a shareable ID.")
-        .addStringOption((option: SlashCommandStringOption) => option.setName("id").setDescription("The numeric ID to be converted.")),
+        .addStringOption((option: SlashCommandStringOption)=> option.setName("id").setDescription("The numeric ID to be converted.").setRequired(true)),
 	async execute(Bot: DiscordBot, Interaction: ChatInputCommandInteraction<any> | Message<boolean>, Arguments: any[]) {
 		const newLayer = new DiscordBotCompatibilityLayer(Interaction, true);
         await newLayer.init();

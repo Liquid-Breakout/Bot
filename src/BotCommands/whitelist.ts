@@ -5,7 +5,7 @@ module.exports = {
 	slashData: new SlashCommandBuilder()
 		.setName('whitelist')
 		.setDescription('Whitelist an asset.')
-        .addIntegerOption((option: SlashCommandIntegerOption) => option.setName("asset_id").setDescription("The numeric ID of the asset needed to be whitelisted.")),
+        .addIntegerOption((option: SlashCommandIntegerOption) => option.setName("asset_id").setDescription("The numeric ID of the asset needed to be whitelisted.").setRequired(true)),
 	async execute(Bot: DiscordBot, Interaction: ChatInputCommandInteraction<any> | Message<boolean>, Arguments: any[]) {
 		const newLayer = new DiscordBotCompatibilityLayer(Interaction, true);
         await newLayer.init();
