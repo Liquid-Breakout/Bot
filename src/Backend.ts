@@ -146,7 +146,7 @@ class Backend {
     public async WhitelistAsset(AssetId: number, UserId: number) {
         const CreatorOwnedItem = await this.CheckIfUserOwnItem(AssetId, 138801491);
         if (CreatorOwnedItem)
-            return CreateOutput(this.OutputCodes.ALREADY_WHITELISTED);
+            return CreateOutput(this.OutputCodes.ALREADY_WHITELISTED, "User have already whitelisted ID.");
 
         if (!Number.isNaN(UserId)) {
             const OwnItem: boolean = await this.CheckIfUserOwnItem(AssetId, UserId);
@@ -191,7 +191,7 @@ class Backend {
         else if (AssetType != 10)
             return CreateOutput(
                 this.OutputCodes.ERR_INVALID_ITEM,
-                `Cannot whitelist: Item type is not a Model`
+                `Cannot whitelist: Item type is not a Model.`
             );
         else if (!isNaN(ItemPrice) && ItemPrice > 0)
             return CreateOutput(
@@ -214,7 +214,7 @@ class Backend {
                 });
                 return CreateOutput(
                     this.OutputCodes.OPERATION_SUCCESS,
-                    null,
+                    "User successfully whitelisted ID.",
                     {"shareableId": this.IDConverter.Short(AssetId.toString())}
                 );
             } catch (AxiosResponse: any) {
