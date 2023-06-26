@@ -22,7 +22,7 @@ module.exports = {
             const shareableId: number | undefined = WhitelistOutput.data ? WhitelistOutput.data["shareableId"] : undefined;
             await newLayer.reply(`Whitelisted successfully!${shareableId != undefined ? ` Your shareable ID is: \`\`${shareableId}\`\`` : ""}`);
         } else if (WhitelistOutput.code == Bot.Backend.OutputCodes.ALREADY_WHITELISTED)
-            await newLayer.reply(`Already whitelisted. Use ${Bot.Prefix}getshareid to get the shareable ID.`);
+            await newLayer.reply(`Already whitelisted. Use getshareid command to get the shareable ID.`);
         else
             await newLayer.reply(`Error while whitelisting!\nCode: ${Bot.Backend.LookupNameByOutputCode(WhitelistOutput.code)}${WhitelistOutput.message != undefined ? `\n${WhitelistOutput.message}` : ""}`)
         
