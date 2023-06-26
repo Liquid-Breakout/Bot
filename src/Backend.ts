@@ -220,7 +220,7 @@ class Backend {
             } catch (AxiosResponse: any) {
                 return CreateOutput(
                     this.OutputCodes.ERR_CANNOT_WHITELIST,
-                    null,
+                    "Failed to whitelist: Cannot purchase model.",
                     {
                         "robloxErrorCode": AxiosResponse.response != null ? AxiosResponse.response.status : -1,
                         "robloxMessage": AxiosResponse.response != null ? AxiosResponse.response.statusText : null,
