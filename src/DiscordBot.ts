@@ -57,7 +57,7 @@ class DiscordBot {
         let embeds: any = [
             {
                 title: "New Whitelist Log",
-                color: isSuccess ? 5763719 : 15548997,
+                color: isSuccess ? 2067276 : 15548997,
                 thumbnail: {
                     url: thumbnailImage,
                 },
@@ -81,7 +81,7 @@ class DiscordBot {
         try {
             await logWhitelistWebhookClient.send({ embeds: embeds });
         } catch (err) {
-
+            console.log(`Webhook error: ${err}`);
         }
     }
 
