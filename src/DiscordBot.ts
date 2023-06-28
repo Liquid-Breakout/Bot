@@ -37,9 +37,9 @@ class DiscordBot {
 
         let havePermission = undefined;
         if (!havePermission && permsArray.indexOf("PRIVILEGE") != -1)
-            havePermission = this.privilegeUsers.indexOf(userId) != 1;
+            havePermission = this.privilegeUsers.indexOf(userId) != -1;
         if (!havePermission && permsArray.indexOf("REVERSE_SHORT") != -1)
-            havePermission = this.reverseShortPrivilegeUsers.indexOf(userId) != 1;
+            havePermission = this.reverseShortPrivilegeUsers.indexOf(userId) != -1;
         return havePermission == undefined || havePermission == true;
     }
 
