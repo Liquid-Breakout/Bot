@@ -14,7 +14,7 @@ module.exports = {
         const BroadcastChannel: string = "1041032381668282450";
         newLayer.reply(`Broadcasting "${BroadcastMessage}"...`);
 
-        const gotChannel: Channel | undefined = this.Client.channels.cache.get(BroadcastChannel);
+        const gotChannel: Channel | undefined = Bot.Client.channels.cache.get(BroadcastChannel);
         if (gotChannel) 
             await (gotChannel as TextChannel).send(BroadcastMessage);
 	},
