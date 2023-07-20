@@ -23,6 +23,7 @@ class ServerFrontend {
             const RequestQuery = Request.query;
             let AssetId: number = RequestQuery.assetId ? parseInt(RequestQuery.assetId.toString()) : NaN;
             let UserId: number = RequestQuery.userId ? parseInt(RequestQuery.userId.toString()) : NaN;
+            let ApiKey: string = RequestQuery.apiKey ? RequestQuery.apiKey.toString() : "NULL";
 
             if (isNaN(AssetId)) {
                 Response.status(400).send("Invalid assetId param.")
@@ -30,6 +31,10 @@ class ServerFrontend {
 			}
             if (isNaN(UserId)) {
 				Response.status(400).send("Invalid userId param.")
+				return;
+            }
+            if (ApiKey == "NULL" || !(await this._backend.IsValidApiKey(ApiKey))) {
+				Response.status(400).send("Invalid apiKey param or API key has been invalidated.")
 				return;
             }
 
@@ -41,6 +46,23 @@ class ServerFrontend {
 
             Response.send(backendResponse);
         });
+        this.ServerApp.get('/scanmap', async (Request: Request, Response: Response) => {
+            const RequestQuery = Request.query;
+            let AssetId: number = RequestQuery.assetId ? parseInt(RequestQuery.assetId.toString()) : NaN;
+            let ApiKey: string = RequestQuery.apiKey ? RequestQuery.apiKey.toString() : "NULL";
+
+            if (isNaN(AssetId)) {
+                Response.status(400).send("Invalid assetId param.")
+				return;
+			}
+            if (ApiKey == "NULL" || !(await this._backend.IsValidApiKey(ApiKey))) {
+				Response.status(400).send("Invalid apiKey param or API key has been invalidated.")
+				return;
+            }
+
+            let backendReponse = await this._backend.ScanForMaliciousScripts(AssetId);
+            Response.send(backendReponse);
+        })
         this.ServerApp.get('/getshareableid', (Request: Request, Response: Response) => {
             const RequestQuery = Request.query;
             let AssetId: number = RequestQuery.assetId ? parseInt(RequestQuery.assetId.toString()) : NaN;

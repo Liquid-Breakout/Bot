@@ -4,6 +4,8 @@ import mongoose from "mongoose";
 import decodeAudio from "./audioDecoder/index"
 import Meyda from "meyda";
 import zlib from "node:zlib"
+import FileParser from "./RobloxFileParser/FileParser"
+import { Instance } from "./RobloxFileParser/Instance";
 
 const ExternalFrequencyProcessorUrl = "https://externalsoundfrequencyprocessor.onrender.com";
 
@@ -105,7 +107,10 @@ class Backend {
         "ERR_ITEM_NOT_OWNED_BY_USER": 5,
         "ERR_INVALID_ITEM": 6,
         "ERR_INVALID_API_KEY": 7,
-        "ERR_INVALID_API_KEY_OWNER": 8
+        "ERR_INVALID_API_KEY_OWNER": 8,
+        "ERR_CANNOT_PARSE_MODEL": 9,
+        "SCAN_RESULT_MALICIOUS": 10,
+        "SCAN_RESULT_CLEAN": 11
     };
 
     public LookupNameByOutputCode(Code: number) {
@@ -229,6 +234,165 @@ class Backend {
             }
         }
     }    
+
+    public async ScanForMaliciousScripts(AssetId: number) {
+        const CreatorOwnedItem = await this.CheckIfUserOwnItem(AssetId, 138801491);
+        if (!CreatorOwnedItem)
+            return CreateOutput(this.OutputCodes.ERR_ITEM_NOT_OWNED_BY_USER, "The model ID is not whitelisted.");
+
+        let [FetchSessionSuccess, SessionToken] = await this.GetSessionToken(this.RobloxToken);
+        if (!FetchSessionSuccess)
+            return SessionToken;
+
+        let AssetData, ErrorResponse;
+        try {
+            AssetData = (await axios({
+                url: `https://assetdelivery.roblox.com/v1/asset/?id=${AssetId}`,
+                headers: {
+                    cookie: `.ROBLOSECURITY=${this.RobloxToken}`,
+                    "x-csrf-token": SessionToken,
+                },
+                method: "GET",
+                responseType: "arraybuffer"
+            })).data;
+        } catch (AxiosResponse: any) { ErrorResponse = AxiosResponse; }
+        if (!AssetData)
+            return CreateOutput(
+                this.OutputCodes.ERR_INVALID_ITEM,
+                `Cannot scan: Failed to obtain asset data.\n${ErrorResponse.response ? ErrorResponse.response.statusText : ErrorResponse}`,
+                {
+                    "robloxErrorCode": ErrorResponse.response != null ? ErrorResponse.response.status : -1,
+                    "robloxMessage": ErrorResponse.response != null ? ErrorResponse.response.statusText : null,
+                }
+            );
+        
+        let ParseResult;
+        try {
+            ParseResult = FileParser(AssetData, null).result;
+        } catch(err: any) {
+            return CreateOutput(
+                this.OutputCodes.ERR_CANNOT_PARSE_MODEL,
+                `Cannot scan: Encountered an error (${err.toString()})`
+            )
+        }
+
+        // Find malicious scripts
+        // W.I.P.
+        let foundScripts: string[] = [];
+        let scanResults: {[scriptName: string]: string[]} = {};
+        let isMalicious = false;
+        let filterList: {[filterText: string]: {type: "function" | "string", report: string, exception?: RegExp}} = {
+            "clone": {type: "string", report: "Usage of :Clone()"},
+            "loadasset": {type: "string", report: "Usage of :LoadAsset()"},
+            "httpservice": {type: "string", report: "Attempted to use HttpService"},
+            "loadstring": {type: "string", report: "Attempted to use loadstring"},
+            "getfenv": {type: "string", report: "Extremely suspicious (usage of getfenv)"},
+            "require": {type: "string", report: "Usage of require()", exception: /\(\S+\.+\)/}
+            // idk
+        }
+
+        function canMakeException(source: string, caughtIndex: number, filterData: {type: "function" | "string", report: string, exception?: RegExp}): boolean {
+            if (!filterData.exception) {
+                return false;
+            }
+
+            const found = source.match(filterData.exception);
+            if (found) {
+                console.log(caughtIndex, found)
+                if (found.index == caughtIndex + 1) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function scan(instanceTrees: Instance[], instanceTreeString: string = "") {
+            instanceTrees.forEach((instance: Instance) => {
+                const instanceName: string = instance.Properties.Name.value;
+                if (["Script", "LocalScript", "ModuleScript"].indexOf(instance.Properties.ClassName.value) !== -1) {
+                    const scriptName = `${instanceTreeString}${instanceName}`;
+                    foundScripts.push(scriptName);
+
+                    // Filter (for now, might do a full luau execution soon (if i can))
+                    let scriptSource: string | undefined = instance.Properties["Source"]?.value;
+                    if (scriptSource) {
+                        scriptSource = scriptSource.toLowerCase();
+                        Object.keys(filterList).forEach((text: string) => {
+                            const filterData = filterList[text];
+                            const reversed: string = reverseString(text);
+                            const toBytecodeRepresentation: number[] = text.split("").map(function(item) {
+                                return item.charCodeAt(0);
+                            });;
+                            const bytecodeString: string = toBytecodeRepresentation.join("\\");
+                            const reversedBytecodeString: string = toBytecodeRepresentation.reverse().join("\\");
+                                
+                            if (filterData.type == "function") {
+                                const dotIndexs: {[kind: string]: number | undefined} = {
+                                    normal: scriptSource?.indexOf(`.${text}`),
+                                    reversed: scriptSource?.indexOf(`.${reversed}`),
+                                    bytecode: scriptSource?.indexOf(`.${bytecodeString}`),
+                                    reversedBytecode: scriptSource?.indexOf(`.${reversedBytecodeString}`)
+                                };
+                                const colonIndexs: {[kind: string]: number | undefined} = {
+                                    normal: scriptSource?.indexOf(`:${text}`),
+                                    reversed: scriptSource?.indexOf(`:${reversed}`),
+                                    bytecode: scriptSource?.indexOf(`:${bytecodeString}`),
+                                    reversedBytecode: scriptSource?.indexOf(`:${reversedBytecodeString}`)
+                                };
+                                
+                                Object.keys(dotIndexs).forEach((kind: string) => {
+                                    if (dotIndexs[kind] !== -1 && !canMakeException(scriptSource as string, dotIndexs[kind] as number, filterData)) {
+                                        isMalicious = true;
+                                        if (!scanResults[scriptName]) {
+                                            scanResults[scriptName] = [];
+                                        }
+                                        scanResults[scriptName].push(`${filterData.report} (identified as using ${kind} kind)`);
+                                    }
+                                });
+                                Object.keys(colonIndexs).forEach((kind: string) => {
+                                    if (colonIndexs[kind] !== -1 && !canMakeException(scriptSource as string, colonIndexs[kind] as number, filterData)) {
+                                        isMalicious = true;
+                                        if (!scanResults[scriptName]) {
+                                            scanResults[scriptName] = [];
+                                        }
+                                        scanResults[scriptName].push(`${filterData.report} (identified as using ${kind} kind)`);
+                                    }
+                                });
+                            } else if (filterData.type == "string") {
+                                const indexs: {[kind: string]: number | undefined} = {
+                                    normal: scriptSource?.indexOf(text),
+                                    reversed: scriptSource?.indexOf(reversed),
+                                    bytecode: scriptSource?.indexOf(bytecodeString),
+                                    reversedBytecode: scriptSource?.indexOf(reversedBytecodeString)
+                                };
+                                
+                                Object.keys(indexs).forEach((kind: string) => {
+                                    if (indexs[kind] !== -1 && !canMakeException(scriptSource as string, indexs[kind] as number, filterData)) {
+                                        isMalicious = true;
+                                        if (!scanResults[scriptName]) {
+                                            scanResults[scriptName] = [];
+                                        }
+                                        scanResults[scriptName].push(`${filterData.report} (identified as using ${kind} kind)`);
+                                    }
+                                });
+                            }
+                        });
+                    }
+                }
+                if (instance.Children.length > 0) {
+                    let newInstanceTreeString = instanceTreeString == "" ? `${instanceName}.` : `${instanceTreeString}${instanceName}.`;
+                    scan(instance.Children, newInstanceTreeString);
+                }
+            });
+        }
+        scan(ParseResult);
+
+        return CreateOutput(
+            isMalicious ? this.OutputCodes.SCAN_RESULT_MALICIOUS : this.OutputCodes.SCAN_RESULT_CLEAN,
+            isMalicious ? `ID ${AssetId} contains malicious scripts.` : `ID ${AssetId} is all-good.`,
+            {isMalicious: isMalicious, foundScripts: foundScripts, scanResult: scanResults}
+        );
+    }
 
     public async Internal_GetPlaceFile(PlaceId: number, ExpressResponse: Response) {
         try {
