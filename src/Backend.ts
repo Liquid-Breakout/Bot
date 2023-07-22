@@ -291,15 +291,14 @@ class Backend {
             // idk
         }
 
-        function canMakeException(source: string, caughtIndex: number, filterData: {type: "function" | "string", report: string, exception?: RegExp}): boolean {
+        function canMakeException(source: string, caughtEndIndex: number, filterData: {type: "function" | "string", report: string, exception?: RegExp}): boolean {
             if (!filterData.exception) {
                 return false;
             }
 
             const found = source.match(filterData.exception);
             if (found) {
-                console.log(caughtIndex, found)
-                return found.index == caughtIndex + 1;
+                return found.index == caughtEndIndex + 1;
             }
             return false;
         }
@@ -325,21 +324,22 @@ class Backend {
                             const reversedBytecodeString: string = toBytecodeRepresentation.reverse().join("\\");
                                 
                             if (filterData.type == "function") {
-                                const dotIndexs: {[kind: string]: number | undefined} = {
-                                    normal: scriptSource?.indexOf(`.${text}`),
-                                    reversed: scriptSource?.indexOf(`.${reversed}`),
-                                    bytecode: scriptSource?.indexOf(`.${bytecodeString}`),
-                                    reversedBytecode: scriptSource?.indexOf(`.${reversedBytecodeString}`)
+                                const dotIndexs: {[kind: string]: string} = {
+                                    normal: `.${text}`,
+                                    reversed: `.${reversed}`,
+                                    bytecode: `.${bytecodeString}`,
+                                    reversedBytecode: `.${reversedBytecodeString}`
                                 };
-                                const colonIndexs: {[kind: string]: number | undefined} = {
-                                    normal: scriptSource?.indexOf(`:${text}`),
-                                    reversed: scriptSource?.indexOf(`:${reversed}`),
-                                    bytecode: scriptSource?.indexOf(`:${bytecodeString}`),
-                                    reversedBytecode: scriptSource?.indexOf(`:${reversedBytecodeString}`)
+                                const colonIndexs: {[kind: string]: string} = {
+                                    normal: `:${text}`,
+                                    reversed: `:${reversed}`,
+                                    bytecode: `:${bytecodeString}`,
+                                    reversedBytecode: `:${reversedBytecodeString}`
                                 };
                                 
                                 Object.keys(dotIndexs).forEach((kind: string) => {
-                                    if (dotIndexs[kind] !== -1 && !canMakeException(scriptSource as string, dotIndexs[kind] as number, filterData)) {
+                                    const indexInString: number = scriptSource?.indexOf(dotIndexs[kind]) || -1;
+                                    if (indexInString !== -1 && !canMakeException(scriptSource as string, indexInString + dotIndexs[kind].length - 1, filterData)) {
                                         isMalicious = true;
                                         if (!scanResults[scriptName]) {
                                             scanResults[scriptName] = [];
@@ -348,7 +348,8 @@ class Backend {
                                     }
                                 });
                                 Object.keys(colonIndexs).forEach((kind: string) => {
-                                    if (colonIndexs[kind] !== -1 && !canMakeException(scriptSource as string, colonIndexs[kind] as number, filterData)) {
+                                    const indexInString: number = scriptSource?.indexOf(colonIndexs[kind]) || -1;
+                                    if (indexInString !== -1 && !canMakeException(scriptSource as string, indexInString + colonIndexs[kind].length - 1, filterData)) {
                                         isMalicious = true;
                                         if (!scanResults[scriptName]) {
                                             scanResults[scriptName] = [];
@@ -358,14 +359,15 @@ class Backend {
                                 });
                             } else if (filterData.type == "string") {
                                 const indexs: {[kind: string]: number | undefined} = {
-                                    normal: scriptSource?.indexOf(text),
-                                    reversed: scriptSource?.indexOf(reversed),
-                                    bytecode: scriptSource?.indexOf(bytecodeString),
-                                    reversedBytecode: scriptSource?.indexOf(reversedBytecodeString)
+                                    normal: text,
+                                    reversed: reversed,
+                                    bytecode: bytecodeString,
+                                    reversedBytecode: reversedBytecodeString
                                 };
                                 
                                 Object.keys(indexs).forEach((kind: string) => {
-                                    if (indexs[kind] !== -1 && !canMakeException(scriptSource as string, indexs[kind] as number, filterData)) {
+                                    const indexInString: number = scriptSource?.indexOf(indexs[kind]) || -1;
+                                    if (indexInString !== -1 && !canMakeException(scriptSource as string, indexInString + indexs[kind].length - 1, filterData)) {
                                         isMalicious = true;
                                         if (!scanResults[scriptName]) {
                                             scanResults[scriptName] = [];
