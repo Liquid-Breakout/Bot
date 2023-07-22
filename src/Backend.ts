@@ -358,7 +358,7 @@ class Backend {
                                     }
                                 });
                             } else if (filterData.type == "string") {
-                                const indexs: {[kind: string]: number | undefined} = {
+                                const indexs: {[kind: string]: string} = {
                                     normal: text,
                                     reversed: reversed,
                                     bytecode: bytecodeString,
