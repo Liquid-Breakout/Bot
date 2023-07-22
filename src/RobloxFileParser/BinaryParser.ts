@@ -16,7 +16,7 @@ const BinaryParser = {
 		const reader = new ByteReader(buffer)
 
 		if(!reader.Match(this.HeaderBytes)) {
-			throw new Error("[ParseRBXBin] Header bytes did not match (Did binary format change?)")
+			throw new Error("[RobloxBinaryParser] Header bytes did not match (Did binary format change?)")
 		}
 
 		const groupsCount = reader.UInt32LE()
@@ -519,9 +519,9 @@ const BinaryParser = {
 		}
 		default:
 			if(!typeName) {
-                console.warn(`[ParseRBXBin] Unknown dataType 0x${dataType.toString(16).toUpperCase()} (${dataType}) for ${group.ClassName}.${prop}`)
+                console.warn(`[RobloxBinaryParser] Unknown dataType 0x${dataType.toString(16).toUpperCase()} (${dataType}) for ${group.ClassName}.${prop}`)
             } else {
-                console.warn(`[ParseRBXBin] Unimplemented dataType '${typeName}' for ${group.ClassName}.${prop}`)
+                console.warn(`[RobloxBinaryParser] Unimplemented dataType '${typeName}' for ${group.ClassName}.${prop}`)
             }
             break
 		case "UnknownScriptFormat":
@@ -533,7 +533,7 @@ const BinaryParser = {
 		
 		if(isOptional) {
 			if(this.DataTypes[chunk.Byte()] !== "bool" || chunk.GetRemaining() !== instCount) {
-				console.warn(`[ParseRBXBin] Missing byte array at end of optional`)
+				console.warn(`[RobloxBinaryParser] Missing byte array at end of optional`)
 				
 				isOptional = false
 				for(let i = 0; i < instCount; i++) {

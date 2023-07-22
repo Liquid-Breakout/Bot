@@ -238,7 +238,7 @@ class DiscordBotCompatibilityLayer {
 
     public async init(ephemeral?: boolean) {
         if (this._defer && this._object instanceof ChatInputCommandInteraction)
-            await this._object.deferReply({ ephemeral: ephemeral ? ephemeral : true });
+            await this._object.deferReply({ ephemeral: ephemeral != undefined ? ephemeral : true });
     }
 
     constructor(InteractionObject: Message<boolean> | ChatInputCommandInteraction<any>, doDefer: boolean) {

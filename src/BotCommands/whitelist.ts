@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, Message, SlashCommandBuilder, SlashCommandIntegerOption } from "discord.js";
+import { ChatInputCommandInteraction, Message, SlashCommandBuilder, SlashCommandIntegerOption, Channel, TextChannel } from "discord.js";
 import { DiscordBot, DiscordBotCompatibilityLayer } from "../DiscordBot"
 
 module.exports = {
@@ -23,8 +23,30 @@ module.exports = {
             await newLayer.reply(`Whitelisted successfully!${shareableId != undefined ? ` Your shareable ID is: \`\`${shareableId}\`\`` : ""}`);
         } else if (WhitelistOutput.code == Bot.Backend.OutputCodes.ALREADY_WHITELISTED)
             await newLayer.reply(`Already whitelisted. Use getshareid command to get the shareable ID.`);
-        else
-            await newLayer.reply(`Error while whitelisting!\nCode: ${Bot.Backend.LookupNameByOutputCode(WhitelistOutput.code)}${WhitelistOutput.message != undefined ? `\n${WhitelistOutput.message}` : ""}`)
+        else {
+            if (WhitelistOutput.code == Bot.Backend.OutputCodes.SCAN_RESULT_MALICIOUS) {
+                let scanResultCollected: string[] = [];
+                Object.keys(WhitelistOutput.data.scanResult).forEach((scriptName: string) => {
+                    let collectedResults: string[] = [];
+                    WhitelistOutput.data.scanResult[scriptName].forEach((caughtData: any) => {
+                        collectedResults.push(`- Line ${caughtData.line}, at column ${caughtData.column}: \`${caughtData.message}\``);
+                    })
+                    scanResultCollected.push(`\`${scriptName}\`:\n${collectedResults.join("\n")}`);
+                });
+
+                await newLayer.reply(`Error while whitelisting: Your model contains potentially malicious scripts:\n${scanResultCollected.join("\n")}\n\n**Resolve these issues in order for whitelisting to continue.**`);
+
+                // Send to LB team
+                try {
+                    const gotChannel: Channel | undefined = Bot.Client.channels.cache.get("1060461267707514890");
+                    if (gotChannel && gotChannel instanceof TextChannel) {
+                        await gotChannel.send(`<@&1041041978000949278> ID ${RequestAssetId} contains malicious scripts, please review: ${scanResultCollected.join("\n")}`);
+                    }
+                } catch (_) {}
+            } else {
+                await newLayer.reply(`Error while whitelisting!\nCode: ${Bot.Backend.LookupNameByOutputCode(WhitelistOutput.code)}${WhitelistOutput.message != undefined ? `\n${WhitelistOutput.message}` : ""}`)
+            }
+        }
         
         if (WhitelistOutput.code == Bot.Backend.OutputCodes.OPERATION_SUCCESS || WhitelistOutput.code == Bot.Backend.OutputCodes.ALREADY_WHITELISTED)
             await Bot.LogWhitelist(newLayer.author, `<@${newLayer.author?.id}>`, RequestAssetId, true, WhitelistOutput.message)

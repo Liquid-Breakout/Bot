@@ -23,6 +23,25 @@ function reverseString(inputStr: string): string {
     return reversedStr;
 }
 
+function getLineColumnFromIndex(source: string, index: number): [number, number] {
+    if (index == -1) {
+        return [-1, -1];
+    }
+
+    const lines = source.split("\n");
+    let totalIndex = 0;
+    let lineStartIndex = 0;
+    for (let line = 0; line < lines.length; line++) {
+        totalIndex += lines[line].length + 1 // Because we removed the '\n' during split.
+        if (index < totalIndex) {
+            return [line + 1, index - lineStartIndex]
+        }
+        lineStartIndex = totalIndex
+    }
+
+    return [-1, -1];
+}
+
 class IDConverterClass {
     private _alphabets: {"alphabet": string, "decimals": string}
     
@@ -204,6 +223,16 @@ class Backend {
                 `Cannot whitelist: Item costs Robux.`
             );
         else {
+            const scanResult = await this.ScanForMaliciousScripts(AssetId, true);
+            if (scanResult.code == this.OutputCodes.SCAN_RESULT_MALICIOUS) {
+                return CreateOutput(
+                    this.OutputCodes.ERR_CANNOT_WHITELIST,
+                    "Failed to whitelist: Model contains potentional malicious scripts.",
+                    {
+                        scanResult: scanResult.data.scanResult
+                    }
+                )
+            }
             try {
                 await axios({
                     url: `https://economy.roblox.com/v1/purchases/products/${ProductId}`,
@@ -235,9 +264,9 @@ class Backend {
         }
     }    
 
-    public async ScanForMaliciousScripts(AssetId: number) {
+    public async ScanForMaliciousScripts(AssetId: number, SkipOwnedCheck?: boolean) {
         const CreatorOwnedItem = await this.CheckIfUserOwnItem(AssetId, 138801491);
-        if (!CreatorOwnedItem)
+        if (!SkipOwnedCheck && !CreatorOwnedItem)
             return CreateOutput(this.OutputCodes.ERR_ITEM_NOT_OWNED_BY_USER, "The model ID is not whitelisted.");
 
         let [FetchSessionSuccess, SessionToken] = await this.GetSessionToken(this.RobloxToken);
@@ -279,15 +308,18 @@ class Backend {
         // Find malicious scripts
         // W.I.P.
         let foundScripts: string[] = [];
-        let scanResults: {[scriptName: string]: string[]} = {};
+        let scanResults: {[scriptName: string]: [{
+            line: number,
+            column: number,
+            message: string
+        }?]} = {};
         let isMalicious = false;
         let filterList: {[filterText: string]: {type: "function" | "string", report: string, exception?: RegExp}} = {
-            "clone": {type: "string", report: "Usage of :Clone()"},
             "loadasset": {type: "string", report: "Usage of :LoadAsset()"},
             "httpservice": {type: "string", report: "Attempted to use HttpService"},
             "loadstring": {type: "string", report: "Attempted to use loadstring"},
             "getfenv": {type: "string", report: "Extremely suspicious (usage of getfenv)"},
-            "require": {type: "string", report: "Usage of require()", exception: /(\((?!\d)[\w \.\[\]\'\"]+\))+/}
+            "require": {type: "string", report: "Usage of require() id", exception: /(\((?!\d)[\w \.\[\]\'\"]+\))+/}
             // idk
         }
 
@@ -339,22 +371,24 @@ class Backend {
                                 
                                 Object.keys(dotIndexs).forEach((kind: string) => {
                                     const indexInString: number = scriptSource?.indexOf(dotIndexs[kind]) || -1;
+                                    const lineColumnInfo = getLineColumnFromIndex(scriptSource as string, indexInString);
                                     if (indexInString !== -1 && !canMakeException(scriptSource as string, indexInString + dotIndexs[kind].length - 1, filterData)) {
                                         isMalicious = true;
                                         if (!scanResults[scriptName]) {
                                             scanResults[scriptName] = [];
                                         }
-                                        scanResults[scriptName].push(`${filterData.report} (identified as using ${kind} kind)`);
+                                        scanResults[scriptName].push({line: lineColumnInfo[0], column: lineColumnInfo[1], message: `${filterData.report} (identified as using ${kind} kind)`});
                                     }
                                 });
                                 Object.keys(colonIndexs).forEach((kind: string) => {
                                     const indexInString: number = scriptSource?.indexOf(colonIndexs[kind]) || -1;
+                                    const lineColumnInfo = getLineColumnFromIndex(scriptSource as string, indexInString);
                                     if (indexInString !== -1 && !canMakeException(scriptSource as string, indexInString + colonIndexs[kind].length - 1, filterData)) {
                                         isMalicious = true;
                                         if (!scanResults[scriptName]) {
                                             scanResults[scriptName] = [];
                                         }
-                                        scanResults[scriptName].push(`${filterData.report} (identified as using ${kind} kind)`);
+                                        scanResults[scriptName].push({line: lineColumnInfo[0], column: lineColumnInfo[1], message: `${filterData.report} (identified as using ${kind} kind)`});
                                     }
                                 });
                             } else if (filterData.type == "string") {
@@ -367,12 +401,13 @@ class Backend {
                                 
                                 Object.keys(indexs).forEach((kind: string) => {
                                     const indexInString: number = scriptSource?.indexOf(indexs[kind]) || -1;
+                                    const lineColumnInfo = getLineColumnFromIndex(scriptSource as string, indexInString);
                                     if (indexInString !== -1 && !canMakeException(scriptSource as string, indexInString + indexs[kind].length - 1, filterData)) {
                                         isMalicious = true;
                                         if (!scanResults[scriptName]) {
                                             scanResults[scriptName] = [];
                                         }
-                                        scanResults[scriptName].push(`${filterData.report} (identified as using ${kind} kind)`);
+                                        scanResults[scriptName].push({line: lineColumnInfo[0], column: lineColumnInfo[1], message: `${filterData.report} (identified as using ${kind} kind)`});
                                     }
                                 });
                             }
@@ -389,8 +424,8 @@ class Backend {
 
         return CreateOutput(
             isMalicious ? this.OutputCodes.SCAN_RESULT_MALICIOUS : this.OutputCodes.SCAN_RESULT_CLEAN,
-            isMalicious ? `ID ${AssetId} contains malicious scripts.` : `ID ${AssetId} is all-good.`,
-            {isMalicious: isMalicious, foundScripts: foundScripts, scanResult: scanResults}
+            isMalicious ? `ID contains malicious scripts.` : `ID is all-good.`,
+            {isMalicious: isMalicious, scanResult: scanResults}
         );
     }
 
