@@ -287,7 +287,7 @@ class Backend {
             "httpservice": {type: "string", report: "Attempted to use HttpService"},
             "loadstring": {type: "string", report: "Attempted to use loadstring"},
             "getfenv": {type: "string", report: "Extremely suspicious (usage of getfenv)"},
-            "require": {type: "string", report: "Usage of require()", exception: /\(\S+\.+\)/}
+            "require": {type: "string", report: "Usage of require()", exception: /(\((?!\d)[\w \.\[\]\'\"]+\))+/}
             // idk
         }
 
@@ -299,9 +299,7 @@ class Backend {
             const found = source.match(filterData.exception);
             if (found) {
                 console.log(caughtIndex, found)
-                if (found.index == caughtIndex + 1) {
-                    return true;
-                }
+                return found.index == caughtIndex + 1;
             }
             return false;
         }
