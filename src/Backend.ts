@@ -223,15 +223,17 @@ class Backend {
                 `Cannot whitelist: Item costs Robux.`
             );
         else {
-            const scanResult = await this.ScanForMaliciousScripts(AssetId, true);
-            if (scanResult.code == this.OutputCodes.SCAN_RESULT_MALICIOUS) {
-                return CreateOutput(
-                    this.OutputCodes.ERR_CANNOT_WHITELIST,
-                    "Failed to whitelist: Model contains potentional malicious scripts.",
-                    {
-                        scanResult: scanResult.data.scanResult
-                    }
-                )
+            if (this.SelectedServerType != "WEAK") {
+                const scanResult = await this.ScanForMaliciousScripts(AssetId, true);
+                if (scanResult.code == this.OutputCodes.SCAN_RESULT_MALICIOUS) {
+                    return CreateOutput(
+                        this.OutputCodes.ERR_CANNOT_WHITELIST,
+                        "Failed to whitelist: Model contains potentional malicious scripts.",
+                        {
+                            scanResult: scanResult.data.scanResult
+                        }
+                    )
+                }
             }
             try {
                 await axios({
