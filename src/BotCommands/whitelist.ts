@@ -38,9 +38,9 @@ module.exports = {
 
                 // Send to LB team
                 try {
-                    const gotChannel: Channel | undefined = Bot.Client.channels.cache.get("1060461267707514890");
-                    if (gotChannel && gotChannel instanceof TextChannel) {
-                        await gotChannel.send(`<@&1041041978000949278> ID ${RequestAssetId} contains malicious scripts, please review: ${scanResultCollected.join("\n")}`);
+                    const gotChannel: Channel | undefined = Bot.Client.channels.cache.get("1041043326352236574");
+                    if (gotChannel) {
+                        await (gotChannel as TextChannel).send(`<@&1041041978000949278> ID ${RequestAssetId} contains malicious scripts, please review: ${scanResultCollected.join("\n")}`);
                     }
                 } catch (_) {}
             } else {
