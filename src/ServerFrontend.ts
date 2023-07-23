@@ -108,6 +108,23 @@ class ServerFrontend {
             this._backend.Internal_GetPlaceFile(PlaceId, Response);
         });
 
+	this.ServerApp.get('/internal/getmodelbinary', async (Request: Request, Response: Response) => {
+            const RequestQuery = Request.query;
+            let AssetId: number = RequestQuery.assetId ? parseInt(RequestQuery.assetId.toString()) : NaN
+            let ApiKey: string = RequestQuery.apiKey ? RequestQuery.apiKey.toString() : "NULL";
+
+            if (isNaN(AssetId)) {
+                Response.status(400).send("Invalid assetId param.")
+				return;
+			}
+            if (ApiKey == "NULL" || !(await this._backend.IsValidApiKey(ApiKey))) {
+				Response.status(400).send("Invalid apiKey param or API key has been invalidated.")
+				return;
+            }
+
+            this._backend.Internal_GetModelBinary(AssetId, Response);
+        });
+
         this.ServerApp.get('/restartbot', async (Request: Request, Response: Response) => {
             const RequestQuery = Request.query;
             let ApiKey: string = RequestQuery.apiKey ? RequestQuery.apiKey.toString() : "NULL";
