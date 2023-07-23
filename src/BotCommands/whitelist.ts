@@ -40,7 +40,7 @@ module.exports = {
                 try {
                     const gotChannel: Channel | undefined = Bot.Client.channels.cache.get("1041043326352236574");
                     if (gotChannel) {
-                        await (gotChannel as TextChannel).send(`<@&1041041978000949278> ID ${RequestAssetId} contains malicious scripts, please review: ${scanResultCollected.join("\n")}`);
+                        await (gotChannel as TextChannel).send(`<@&1041041978000949278> ID ${RequestAssetId} contains malicious scripts, please review:\n${scanResultCollected.join("\n")}`);
                     }
                 } catch (_) {}
             } else {
