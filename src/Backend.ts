@@ -482,6 +482,43 @@ class Backend {
         }
     }
 
+    public async Internal_GetModelBinary(AssetId: number, ExpressResponse: Response) {
+        const CreatorOwnedItem = await this.CheckIfUserOwnItem(AssetId, 138801491);
+        let ItemData, ErrorResponse;
+        try {
+            ItemData = (await axios({
+                url: `https://economy.roblox.com/v2/assets/${AssetId}/details`,
+                method: "GET",
+            })).data;
+        } catch (AxiosResponse: any) { ErrorResponse = AxiosResponse; }
+        if (!ItemData)
+            ExpressResponse.status(400).send("Cannot get item data.");
+    
+        const AssetType = ItemData.AssetTypeId;
+        const IsOnSale = ItemData.IsPublicDomain;
+        const ItemPrice = parseInt(ItemData.PriceInRobux);
+        if (!IsOnSale && !CreatorOwnedItem)
+            return ExpressResponse.status(400).send("Item is not on-sale / not whitelisted.");
+        else if (AssetType != 10)
+            return ExpressResponse.status(400).send("Item is not a model.");
+        else if (!isNaN(ItemPrice) && ItemPrice > 0)
+            return ExpressResponse.status(400).send("Item costs robux.");
+
+        try {
+            const AxiosResponse = await axios({
+                url: `https://assetdelivery.roblox.com/v1/asset/?id=${AssetId}`,
+                method: "GET",
+                responseType: "stream",
+                headers: {
+                    cookie: `.ROBLOSECURITY=${this.RobloxToken}` 
+                }
+            });
+            AxiosResponse.data.pipe(ExpressResponse);
+        } catch (AxiosResponse: any) {
+            ExpressResponse.sendStatus(400);
+        }
+    }
+
     public async IsValidApiKey(apiKey: string) {
         const document = await ApiKeyModel.findOne({ value: apiKey }).exec();
         if (document == null)
