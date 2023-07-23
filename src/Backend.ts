@@ -265,9 +265,44 @@ class Backend {
     }    
 
     public async ScanForMaliciousScripts(AssetId: number, SkipOwnedCheck?: boolean) {
-        const CreatorOwnedItem = await this.CheckIfUserOwnItem(AssetId, 138801491);
-        if (!SkipOwnedCheck && !CreatorOwnedItem)
-            return CreateOutput(this.OutputCodes.ERR_ITEM_NOT_OWNED_BY_USER, "The model ID is not whitelisted.");
+        if (!SkipOwnedCheck) {
+            const CreatorOwnedItem = await this.CheckIfUserOwnItem(AssetId, 138801491);
+            let ItemData, ErrorResponse;
+            try {
+                ItemData = (await axios({
+                    url: `https://economy.roblox.com/v2/assets/${AssetId}/details`,
+                    method: "GET",
+                })).data;
+            } catch (AxiosResponse: any) { ErrorResponse = AxiosResponse; }
+            if (!ItemData)
+                return CreateOutput(
+                    this.OutputCodes.ERR_INVALID_ITEM,
+                    `Cannot scan: Failed to obtain item data.\n${ErrorResponse.response ? ErrorResponse.response.statusText : ErrorResponse}`,
+                    {
+                        "robloxErrorCode": ErrorResponse.response != null ? ErrorResponse.response.status : -1,
+                        "robloxMessage": ErrorResponse.response != null ? ErrorResponse.response.statusText : null,
+                    }
+                );
+        
+            const AssetType = ItemData.AssetTypeId;
+            const IsOnSale = ItemData.IsPublicDomain;
+            const ItemPrice = parseInt(ItemData.PriceInRobux);
+            if (!IsOnSale && !CreatorOwnedItem)
+                return CreateOutput(
+                    this.OutputCodes.ERR_INVALID_ITEM,
+                    `Cannot scan: Item is not on-sale / not whitelisted.`
+                );
+            else if (AssetType != 10)
+                return CreateOutput(
+                    this.OutputCodes.ERR_INVALID_ITEM,
+                    `Cannot scan: Item type is not a Model.`
+                );
+            else if (!isNaN(ItemPrice) && ItemPrice > 0)
+                return CreateOutput(
+                    this.OutputCodes.ERR_INVALID_ITEM,
+                    `Cannot scan: Item costs Robux.`
+                );
+        }
 
         let [FetchSessionSuccess, SessionToken] = await this.GetSessionToken(this.RobloxToken);
         if (!FetchSessionSuccess)

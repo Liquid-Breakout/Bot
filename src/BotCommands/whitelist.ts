@@ -40,9 +40,11 @@ module.exports = {
                 try {
                     const gotChannel: Channel | undefined = Bot.Client.channels.cache.get("1041043326352236574");
                     if (gotChannel) {
-                        await (gotChannel as TextChannel).send(`<@&1041041978000949278> ID ${RequestAssetId} contains malicious scripts, please review:\n${scanResultCollected.join("\n")}`);
+                        (gotChannel as TextChannel).send(`<@&1041041978000949278> ID ${RequestAssetId} contains malicious scripts, please review:\n${scanResultCollected.join("\n")}`);
                     }
-                } catch (_) {}
+                } catch (err) {
+                    console.log(`Can't send to LB team: ${err}`);
+                }
             } else {
                 await newLayer.reply(`Error while whitelisting!\nCode: ${Bot.Backend.LookupNameByOutputCode(WhitelistOutput.code)}${WhitelistOutput.message != undefined ? `\n${WhitelistOutput.message}` : ""}`)
             }
