@@ -6,6 +6,8 @@ import Meyda from "meyda";
 import zlib from "node:zlib"
 import { Log } from "./Logger";
 import geoip from "fast-geoip";
+import FileParser from "./RobloxFileParser/FileParser"
+import { Instance } from "./RobloxFileParser/Instance";
 
 // For your concern, this is used to check if we need to use a proxy server
 // (As Roblox block IP address that mismatch cookie's continent :( )
@@ -93,6 +95,25 @@ function reverseString(inputStr: string): string {
     return reversedStr;
 }
 
+function getLineColumnFromIndex(source: string, index: number): [number, number] {
+    if (index == -1) {
+        return [-1, -1];
+    }
+
+    const lines = source.split("\n");
+    let totalIndex = 0;
+    let lineStartIndex = 0;
+    for (let line = 0; line < lines.length; line++) {
+        totalIndex += lines[line].length + 1 // Because we removed the '\n' during split.
+        if (index < totalIndex) {
+            return [line + 1, index - lineStartIndex]
+        }
+        lineStartIndex = totalIndex
+    }
+
+    return [-1, -1];
+}
+
 class IDConverterClass {
     private _alphabets: {"alphabet": string, "decimals": string}
     
@@ -177,7 +198,10 @@ class Backend {
         "ERR_ITEM_NOT_OWNED_BY_USER": 5,
         "ERR_INVALID_ITEM": 6,
         "ERR_INVALID_API_KEY": 7,
-        "ERR_INVALID_API_KEY_OWNER": 8
+        "ERR_INVALID_API_KEY_OWNER": 8,
+        "ERR_CANNOT_PARSE_MODEL": 9,
+        "SCAN_RESULT_MALICIOUS": 10,
+        "SCAN_RESULT_CLEAN": 11
     };
 
     public LookupNameByOutputCode(Code: number) {
@@ -271,6 +295,18 @@ class Backend {
                 `Cannot whitelist: Item costs Robux.`
             );
         else {
+            if (this.SelectedServerType != "WEAK") {
+                const scanResult = await this.ScanForMaliciousScripts(AssetId, true);
+                if (scanResult.code == this.OutputCodes.SCAN_RESULT_MALICIOUS) {
+                    return CreateOutput(
+                        this.OutputCodes.ERR_CANNOT_WHITELIST,
+                        "Failed to whitelist: Model contains potentional malicious scripts.",
+                        {
+                            scanResult: scanResult.data.scanResult
+                        }
+                    )
+                }
+            }
             try {
                 await axiosWithProxy({
                     url: `https://economy.roblox.com/v1/purchases/products/${ProductId}`,
@@ -302,10 +338,247 @@ class Backend {
         }
     }    
 
+    public async ScanForMaliciousScripts(AssetId: number, SkipOwnedCheck?: boolean) {
+        if (!SkipOwnedCheck) {
+            const CreatorOwnedItem = await this.CheckIfUserOwnItem(AssetId, 138801491);
+            let ItemData, ErrorResponse;
+            try {
+                ItemData = (await axios({
+                    url: `https://economy.roblox.com/v2/assets/${AssetId}/details`,
+                    method: "GET",
+                })).data;
+            } catch (AxiosResponse: any) { ErrorResponse = AxiosResponse; }
+            if (!ItemData)
+                return CreateOutput(
+                    this.OutputCodes.ERR_INVALID_ITEM,
+                    `Cannot scan: Failed to obtain item data.\n${ErrorResponse.response ? ErrorResponse.response.statusText : ErrorResponse}`,
+                    {
+                        "robloxErrorCode": ErrorResponse.response != null ? ErrorResponse.response.status : -1,
+                        "robloxMessage": ErrorResponse.response != null ? ErrorResponse.response.statusText : null,
+                    }
+                );
+        
+            const AssetType = ItemData.AssetTypeId;
+            const IsOnSale = ItemData.IsPublicDomain;
+            const ItemPrice = parseInt(ItemData.PriceInRobux);
+            if (!IsOnSale && !CreatorOwnedItem)
+                return CreateOutput(
+                    this.OutputCodes.ERR_INVALID_ITEM,
+                    `Cannot scan: Item is not on-sale / not whitelisted.`
+                );
+            else if (AssetType != 10)
+                return CreateOutput(
+                    this.OutputCodes.ERR_INVALID_ITEM,
+                    `Cannot scan: Item type is not a Model.`
+                );
+            else if (!isNaN(ItemPrice) && ItemPrice > 0)
+                return CreateOutput(
+                    this.OutputCodes.ERR_INVALID_ITEM,
+                    `Cannot scan: Item costs Robux.`
+                );
+        }
+
+        let [FetchSessionSuccess, SessionToken] = await this.GetSessionToken(this.RobloxToken);
+        if (!FetchSessionSuccess)
+            return SessionToken;
+
+        let AssetData, ErrorResponse;
+        try {
+            AssetData = (await axios({
+                url: `https://assetdelivery.roblox.com/v1/asset/?id=${AssetId}`,
+                headers: {
+                    cookie: `.ROBLOSECURITY=${this.RobloxToken}`,
+                    "x-csrf-token": SessionToken,
+                },
+                method: "GET",
+                responseType: "arraybuffer"
+            })).data;
+        } catch (AxiosResponse: any) { ErrorResponse = AxiosResponse; }
+        if (!AssetData)
+            return CreateOutput(
+                this.OutputCodes.ERR_INVALID_ITEM,
+                `Cannot scan: Failed to obtain asset data.\n${ErrorResponse.response ? ErrorResponse.response.statusText : ErrorResponse}`,
+                {
+                    "robloxErrorCode": ErrorResponse.response != null ? ErrorResponse.response.status : -1,
+                    "robloxMessage": ErrorResponse.response != null ? ErrorResponse.response.statusText : null,
+                }
+            );
+        
+        let ParseResult;
+        try {
+            ParseResult = FileParser(AssetData, null).result;
+        } catch(err: any) {
+            return CreateOutput(
+                this.OutputCodes.ERR_CANNOT_PARSE_MODEL,
+                `Cannot scan: Encountered an error (${err.toString()})`
+            )
+        }
+
+        // Find malicious scripts
+        // W.I.P.
+        let foundScripts: string[] = [];
+        let scanResults: {[scriptName: string]: [{
+            line: number,
+            column: number,
+            message: string
+        }?]} = {};
+        let isMalicious = false;
+        let filterList: {[filterText: string]: {type: "function" | "string", report: string, exception?: RegExp}} = {
+            "loadasset": {type: "string", report: "Usage of :LoadAsset()"},
+            "httpservice": {type: "string", report: "Attempted to use HttpService"},
+            "loadstring": {type: "string", report: "Attempted to use loadstring"},
+            "getfenv": {type: "string", report: "Extremely suspicious (usage of getfenv)"},
+            "require": {type: "string", report: "Usage of require() id", exception: /(\((?!\d)[\w \.\[\]\'\"]+\))+/}
+            // idk
+        }
+
+        function canMakeException(source: string, caughtEndIndex: number, filterData: {type: "function" | "string", report: string, exception?: RegExp}): boolean {
+            if (!filterData.exception) {
+                return false;
+            }
+
+            const found = source.match(filterData.exception);
+            if (found) {
+                return found.index == caughtEndIndex + 1;
+            }
+            return false;
+        }
+
+        function scan(instanceTrees: Instance[], instanceTreeString: string = "") {
+            instanceTrees.forEach((instance: Instance) => {
+                const instanceName: string = instance.Properties.Name.value;
+                if (["Script", "LocalScript", "ModuleScript"].indexOf(instance.Properties.ClassName.value) !== -1) {
+                    const scriptName = `${instanceTreeString}${instanceName}`;
+                    foundScripts.push(scriptName);
+
+                    // Filter (for now, might do a full luau execution soon (if i can))
+                    let scriptSource: string | undefined = instance.Properties["Source"]?.value;
+                    if (scriptSource) {
+                        scriptSource = scriptSource.toLowerCase();
+                        Object.keys(filterList).forEach((text: string) => {
+                            const filterData = filterList[text];
+                            const reversed: string = reverseString(text);
+                            const toBytecodeRepresentation: number[] = text.split("").map(function(item) {
+                                return item.charCodeAt(0);
+                            });;
+                            const bytecodeString: string = toBytecodeRepresentation.join("\\");
+                            const reversedBytecodeString: string = toBytecodeRepresentation.reverse().join("\\");
+                                
+                            if (filterData.type == "function") {
+                                const dotIndexs: {[kind: string]: string} = {
+                                    normal: `.${text}`,
+                                    reversed: `.${reversed}`,
+                                    bytecode: `.${bytecodeString}`,
+                                    reversedBytecode: `.${reversedBytecodeString}`
+                                };
+                                const colonIndexs: {[kind: string]: string} = {
+                                    normal: `:${text}`,
+                                    reversed: `:${reversed}`,
+                                    bytecode: `:${bytecodeString}`,
+                                    reversedBytecode: `:${reversedBytecodeString}`
+                                };
+                                
+                                Object.keys(dotIndexs).forEach((kind: string) => {
+                                    const indexInString: number = scriptSource?.indexOf(dotIndexs[kind]) || -1;
+                                    const lineColumnInfo = getLineColumnFromIndex(scriptSource as string, indexInString);
+                                    if (indexInString !== -1 && !canMakeException(scriptSource as string, indexInString + dotIndexs[kind].length - 1, filterData)) {
+                                        isMalicious = true;
+                                        if (!scanResults[scriptName]) {
+                                            scanResults[scriptName] = [];
+                                        }
+                                        scanResults[scriptName].push({line: lineColumnInfo[0], column: lineColumnInfo[1], message: `${filterData.report} (identified as using ${kind} kind)`});
+                                    }
+                                });
+                                Object.keys(colonIndexs).forEach((kind: string) => {
+                                    const indexInString: number = scriptSource?.indexOf(colonIndexs[kind]) || -1;
+                                    const lineColumnInfo = getLineColumnFromIndex(scriptSource as string, indexInString);
+                                    if (indexInString !== -1 && !canMakeException(scriptSource as string, indexInString + colonIndexs[kind].length - 1, filterData)) {
+                                        isMalicious = true;
+                                        if (!scanResults[scriptName]) {
+                                            scanResults[scriptName] = [];
+                                        }
+                                        scanResults[scriptName].push({line: lineColumnInfo[0], column: lineColumnInfo[1], message: `${filterData.report} (identified as using ${kind} kind)`});
+                                    }
+                                });
+                            } else if (filterData.type == "string") {
+                                const indexs: {[kind: string]: string} = {
+                                    normal: text,
+                                    reversed: reversed,
+                                    bytecode: bytecodeString,
+                                    reversedBytecode: reversedBytecodeString
+                                };
+                                
+                                Object.keys(indexs).forEach((kind: string) => {
+                                    const indexInString: number = scriptSource?.indexOf(indexs[kind]) || -1;
+                                    const lineColumnInfo = getLineColumnFromIndex(scriptSource as string, indexInString);
+                                    if (indexInString !== -1 && !canMakeException(scriptSource as string, indexInString + indexs[kind].length - 1, filterData)) {
+                                        isMalicious = true;
+                                        if (!scanResults[scriptName]) {
+                                            scanResults[scriptName] = [];
+                                        }
+                                        scanResults[scriptName].push({line: lineColumnInfo[0], column: lineColumnInfo[1], message: `${filterData.report} (identified as using ${kind} kind)`});
+                                    }
+                                });
+                            }
+                        });
+                    }
+                }
+                if (instance.Children.length > 0) {
+                    let newInstanceTreeString = instanceTreeString == "" ? `${instanceName}.` : `${instanceTreeString}${instanceName}.`;
+                    scan(instance.Children, newInstanceTreeString);
+                }
+            });
+        }
+        scan(ParseResult);
+
+        return CreateOutput(
+            isMalicious ? this.OutputCodes.SCAN_RESULT_MALICIOUS : this.OutputCodes.SCAN_RESULT_CLEAN,
+            isMalicious ? `ID contains malicious scripts.` : `ID is all-good.`,
+            {isMalicious: isMalicious, scanResult: scanResults}
+        );
+    }
+
     public async Internal_GetPlaceFile(PlaceId: number, ExpressResponse: Response) {
         try {
             const AxiosResponse = await axiosWithProxy({
                 url: `https://assetdelivery.roblox.com/v1/asset/?id=${PlaceId}`,
+                method: "GET",
+                responseType: "stream",
+                headers: {
+                    cookie: `.ROBLOSECURITY=${this.RobloxToken}` 
+                }
+            });
+            AxiosResponse.data.pipe(ExpressResponse);
+        } catch (AxiosResponse: any) {
+            ExpressResponse.sendStatus(400);
+        }
+    }
+
+    public async Internal_GetModelBinary(AssetId: number, ExpressResponse: Response) {
+        const CreatorOwnedItem = await this.CheckIfUserOwnItem(AssetId, 138801491);
+        let ItemData, ErrorResponse;
+        try {
+            ItemData = (await axios({
+                url: `https://economy.roblox.com/v2/assets/${AssetId}/details`,
+                method: "GET",
+            })).data;
+        } catch (AxiosResponse: any) { ErrorResponse = AxiosResponse; }
+        if (!ItemData)
+            ExpressResponse.status(400).send("Cannot get item data.");
+    
+        const AssetType = ItemData.AssetTypeId;
+        const IsOnSale = ItemData.IsPublicDomain;
+        const ItemPrice = parseInt(ItemData.PriceInRobux);
+        if (!IsOnSale && !CreatorOwnedItem)
+            return ExpressResponse.status(400).send("Item is not on-sale / not whitelisted.");
+        else if (AssetType != 10)
+            return ExpressResponse.status(400).send("Item is not a model.");
+        else if (!isNaN(ItemPrice) && ItemPrice > 0)
+            return ExpressResponse.status(400).send("Item costs robux.");
+
+        try {
+            const AxiosResponse = await axios({
+                url: `https://assetdelivery.roblox.com/v1/asset/?id=${AssetId}`,
                 method: "GET",
                 responseType: "stream",
                 headers: {
