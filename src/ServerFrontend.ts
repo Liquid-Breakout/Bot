@@ -1,25 +1,25 @@
-import express, { Express, Request, Response } from "express";
 import compression from "compression";
 import Backend from "./Backend";
 import { DiscordBot } from "./DiscordBot";
+import { Balancer, Worker } from "./WorkerManager"
+import {Log} from "./Logger";
 
 class ServerFrontend {
     private _backend: Backend;
-    private _discordBot: DiscordBot;
-    public ServerApp: Express;
+    private _discordBot: DiscordBot | undefined;
+    private _worker: Balancer | Worker;
 
-    constructor(Backend: Backend, DiscordBot: DiscordBot) {
+    constructor(Backend: Backend, WorkerProcessor: Balancer | Worker, DiscordBot: DiscordBot | undefined) {
         this._backend = Backend;
+        this._worker = WorkerProcessor;
         this._discordBot = DiscordBot;
 
-        console.log("ServerFrontend initialize");
-        this.ServerApp = express();
+        Log("ServerFrontend initialize");
 
-        this.ServerApp.use(compression());
-        this.ServerApp.get('/', (Request: Request, Response: Response) => {
+        this._worker.bind('/', (Request: any, Response: any) => {
             Response.send("API site for Liquid Breakout.\nCurrent APIs:\n-Whitelisting\n-ID Converter");
-        });
-        this.ServerApp.get('/whitelist', async (Request: Request, Response: Response) => {
+        }, true);
+        this._worker.bind('/whitelist', async (Request: any, Response: any) => {
             const RequestQuery = Request.query;
             let AssetId: number = RequestQuery.assetId ? parseInt(RequestQuery.assetId.toString()) : NaN;
             let UserId: number = RequestQuery.userId ? parseInt(RequestQuery.userId.toString()) : NaN;
@@ -34,14 +34,16 @@ class ServerFrontend {
             }
 
             let backendResponse = await this._backend.WhitelistAsset(AssetId, UserId);
-            if (backendResponse.code == this._backend.OutputCodes.OPERATION_SUCCESS || backendResponse.code == this._backend.OutputCodes.ALREADY_WHITELISTED)
-                this._discordBot.LogWhitelist(null, UserId.toString(), AssetId, true, backendResponse.message)
-            else
-                this._discordBot.LogWhitelist(null, UserId.toString(), AssetId, false, `Code: ${this._backend.LookupNameByOutputCode(backendResponse.code)}\n${backendResponse.message}`)
+            if (this._discordBot) {
+                if (backendResponse.code == this._backend.OutputCodes.OPERATION_SUCCESS || backendResponse.code == this._backend.OutputCodes.ALREADY_WHITELISTED)
+                    this._discordBot.LogWhitelist(null, UserId.toString(), AssetId, true, backendResponse.message)
+                else
+                    this._discordBot.LogWhitelist(null, UserId.toString(), AssetId, false, `Code: ${this._backend.LookupNameByOutputCode(backendResponse.code)}\n${backendResponse.message}`)
+            }
 
             Response.send(backendResponse);
-        });
-        this.ServerApp.get('/getshareableid', (Request: Request, Response: Response) => {
+        }, true);
+        this._worker.bind('/getshareableid', (Request: any, Response: any) => {
             const RequestQuery = Request.query;
             let AssetId: number = RequestQuery.assetId ? parseInt(RequestQuery.assetId.toString()) : NaN;
 
@@ -52,7 +54,7 @@ class ServerFrontend {
 
             Response.send(this._backend.IDConverter.Short(AssetId.toString()));
         });
-        this.ServerApp.get('/getnumberid', async (Request: Request, Response: Response) => {
+        this._worker.bind('/getnumberid', async (Request: any, Response: any) => {
             const RequestQuery = Request.query;
             let AssetId: string | undefined = RequestQuery.assetId ? RequestQuery.assetId.toString() : undefined;
             let ApiKey: string = RequestQuery.apiKey ? RequestQuery.apiKey.toString() : "NULL";
@@ -68,8 +70,7 @@ class ServerFrontend {
 
             Response.send(this._backend.IDConverter.Number(AssetId.toString()));
         });
-
-        this.ServerApp.get('/internal/getplacefile', async (Request: Request, Response: Response) => {
+        this._worker.bind('/internal/getplacefile', async (Request: any, Response: any) => {
             const RequestQuery = Request.query;
             let PlaceId: number = RequestQuery.placeId ? parseInt(RequestQuery.placeId.toString()) : NaN
             let ApiKey: string = RequestQuery.apiKey ? RequestQuery.apiKey.toString() : "NULL";
@@ -84,9 +85,9 @@ class ServerFrontend {
             }
 
             this._backend.Internal_GetPlaceFile(PlaceId, Response);
-        });
+        }, true);
 
-        this.ServerApp.get('/restartbot', async (Request: Request, Response: Response) => {
+        this._worker.bind('/restartbot', async (Request: any, Response: any) => {
             const RequestQuery = Request.query;
             let ApiKey: string = RequestQuery.apiKey ? RequestQuery.apiKey.toString() : "NULL";
 
@@ -94,12 +95,12 @@ class ServerFrontend {
 				Response.status(400).send("Invalid apiKey param or API key has been invalidated.")
 				return;
             }
-            if (!this._discordBot.Alive)
+            if (this._discordBot && !this._discordBot.Alive)
                 this._discordBot.start();
             Response.send("Request sent to bot.")
-        });
+        }, true);
 
-        this.ServerApp.get('/getsoundfrequencydata', async (Request: Request, Response: Response) => {
+        this._worker.bind('/getsoundfrequencydata', async (Request: any, Response: any) => {
             const RequestQuery = Request.query;
             let AudioId: number = RequestQuery.audioId ? parseInt(RequestQuery.audioId.toString()) : NaN;
             let Compress: boolean = RequestQuery.compress ? RequestQuery.compress.toString() == "true" : false;
@@ -110,10 +111,6 @@ class ServerFrontend {
 			}
 
             Response.send(await this._backend.GetSoundFrequenciesData(AudioId, Compress));
-        });
-
-        this.ServerApp.listen(8000, () => {
-            console.log(`ServerFrontEnd: Ready for request`);
         });
     }
 }
