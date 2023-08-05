@@ -92,13 +92,8 @@ class ServerFrontend {
         });
         this.ServerApp.get('/queryscriptfilter', async (Request: Request, Response: Response) => {
             const RequestQuery = Request.query;
-            let AssetId: string | undefined = RequestQuery.assetId ? RequestQuery.assetId.toString() : undefined;
             let ApiKey: string = RequestQuery.apiKey ? RequestQuery.apiKey.toString() : "NULL";
 
-            if (AssetId == undefined) {
-                Response.status(400).send("Invalid assetId param.")
-				return;
-			}
             if (ApiKey == "NULL" || !(await this._backend.IsValidApiKey(ApiKey))) {
 				Response.status(400).send("Invalid apiKey param or API key has been invalidated.")
 				return;
