@@ -131,7 +131,7 @@ class Backend {
         "SCAN_RESULT_MALICIOUS": 10,
         "SCAN_RESULT_CLEAN": 11
     };
-    public ScriptsFilterList = {
+    public ScriptsFilterList: {roblox: {[filterText: string]: {type: "function" | "string", report: string, exceptions?: string[]}}, server: {[filterText: string]: {type: "function" | "string", report: string, exceptions?: [RegExp]}}} = {
         roblox: {
             "loadasset": {type: "string", report: "Usage of :LoadAsset()"},
             "httpservice": {type: "string", report: "Attempted to use HttpService"},
@@ -144,7 +144,7 @@ class Backend {
             "httpservice": {type: "string", report: "Attempted to use HttpService"},
             "loadstring": {type: "string", report: "Attempted to use loadstring"},
             "getfenv": {type: "string", report: "Extremely suspicious (usage of getfenv)"},
-            "require": {type: "string", report: "Usage of require() id", exception: /(\((?!\d)[\w \.\[\]\'\"]+\))+/}
+            "require": {type: "string", report: "Usage of require() id", exceptions: [/(\((?!\d)[\w \.\[\]\'\"]+\))+/]}
         }
     };
 
@@ -367,7 +367,7 @@ class Backend {
             message: string
         }?]} = {};
         let isMalicious = false;
-        let filterList: {[filterText: string]: {type: "function" | "string", report: string, exception?: RegExp}} = this.ScriptsFilterList.server;
+        let filterList: {[filterText: string]: {type: "function" | "string", report: string, exceptions?: [RegExp]}} = this.ScriptsFilterList.server;
 
         function canMakeException(source: string, caughtEndIndex: number, filterData: {type: "function" | "string", report: string, exception?: RegExp}): boolean {
             if (!filterData.exception) {
