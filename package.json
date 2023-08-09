@@ -1,12 +1,27 @@
 {
-  "name": "liquid-breakout-bot",
+  "name": "liquid-breakout-backend",
   "version": "1.0.0",
-  "description": "A discord bot in Node.JS, rewritten in TypeScript.",
+  "description": "The backend serving all requests that requires an external server for Liquid Breakout.",
   "main": "index.js",
   "scripts": {
     "build": "npx tsc",
+    "build_app": "npm run build && mkdir -p app/js && mkdir -p app/dev_config && cp -r build/* app/js && find app/js -type f -name '*.d.ts' -exec rm -r {} \\; && rm -r build",
+    "build_app_binary": "pkg app/js/index.js --config package.json --no-bytecode",
+    "build_app_balancer": "npm run build_app && cp -f dev_config/balancer.env app/dev_config/.env && npm run build_app_binary",
+    "build_app_worker": "npm run build_app && cp -f dev_config/worker.env app/dev_config/.env && npm run build_app_binary",
     "start": "npm run build && node build/index.js",
     "start:dev": "npx nodemon"
+  },
+  "pkg": {
+    "scripts": "app/js/*",
+    "assets": [
+      "app/dev_config/*"
+    ],
+    "targets": [
+      "node16-win-x64",
+      "node16-linux-arm64"
+    ],
+    "outputPath": "binary"
   },
   "author": "cutymeo",
   "license": "ISC",
@@ -20,9 +35,10 @@
     "discord.js": "^14.11.0",
     "dotenv": "^16.0.3",
     "express": "^4.18.2",
-    "fast-geoip": "^1.1.88",
     "fft.js": "^4.0.4",
+    "geolite2-redist": "^3.0.4",
     "guid-typescript": "^1.0.9",
+    "maxmind": "^4.3.11",
     "meyda": "^5.6.2",
     "mongoose": "^7.2.4",
     "mpg123-decoder": "^0.4.8",
@@ -45,6 +61,7 @@
     "@types/sockjs": "^0.3.33",
     "@types/sockjs-client": "^1.5.1",
     "depd": "^2.0.0",
+    "javascript-obfuscator": "^4.0.2",
     "node": "^16.10.0",
     "nodemon": "^2.0.22",
     "ts-node": "^10.9.1",

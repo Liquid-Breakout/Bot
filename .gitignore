@@ -2,3 +2,7 @@ node_modules
 dev_config/.env
 package-lock.json
 build
+app
+binary
+dev_config/balancer.env
+dev_config/worker.env
