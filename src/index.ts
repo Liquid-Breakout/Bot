@@ -11,8 +11,8 @@ import {Log, SetWorkerStatus} from "./Logger";
 // Test only
 import cluster from "cluster";
 
-if (fs.existsSync(path.resolve(__dirname, "../dev_config/.env"))) {
-	dotenv.config({ path: path.resolve(__dirname, "../dev_config/.env") });
+if (fs.existsSync(path.join(__dirname, '../dev_config/.env'))) {
+	dotenv.config({ path: path.join(__dirname, "../dev_config/.env") });
 }
 
 const RobloxToken: string | undefined = process.env["LBCookie"];
@@ -33,7 +33,7 @@ Log(`Launch parameter: Development: ${IsDevelopment}, Balancer: ${IsBalancer}`);
 WorkerProcessor.connect();
 
 let Bot: DiscordBot | undefined;
-if (cluster.isPrimary) {
+if (cluster.isPrimary && IsBalancer) {
 	Log("Balancer started.");
 	Bot = new DiscordBot(AppBackend, ";", BotToken, BotClientId);
 	Bot.start();
