@@ -5,38 +5,27 @@ import decodeAudio from "./audioDecoder/index"
 import Meyda from "meyda";
 import zlib from "node:zlib"
 import { Log } from "./Logger";
-import geoip from "fast-geoip";
 import FileParser from "./RobloxFileParser/FileParser"
 import { Instance } from "./RobloxFileParser/Instance";
+import maxmind, { CountryResponse } from 'maxmind';
 
 // For your concern, this is used to check if we need to use a proxy server
 // (As Roblox block IP address that mismatch cookie's continent :( )
 const ASIA_PROXY_SERVERS = [
     {
         protocol: "https",
-        host: "103.153.232.41",
-        port: 8080
+        host: "78.38.93.20",
+        port: 3128
     },
     {
         protocol: "https",
-        host: "103.48.68.35",
-        port: 83
-    },{
+        host: "114.37.164.53",
+        port: 80
+    },
+    {
         protocol: "https",
-        host: "103.168.254.66",
-        port: 8085
-    },{
-        protocol: "https",
-        host: "103.153.232.41",
-        port: 8080
-    },{
-        protocol: "https",
-        host: "103.153.232.41",
-        port: 8080
-    },{
-        protocol: "https",
-        host: "103.153.232.41",
-        port: 8080
+        host: "116.80.58.42",
+        port: 80
     },
 ];
 let IP_ADDRESS = '0.0.0.0';
@@ -63,8 +52,17 @@ async function getAvaliableProxy(): Promise<any> {
 }
 
 async function axiosWithProxy(...args: any[]): Promise<any> {
-    const IP_DATA = await geoip.lookup(IP_ADDRESS);
     let isAsiaLocation = false;
+    let {GeoIpDbName, open} = await eval('import("geolite2-redist")');
+    const reader = await open(
+        GeoIpDbName.Country,
+        (path: any) => maxmind.open<CountryResponse>(path)
+    )
+    const lookup = reader.get(IP_ADDRESS);
+    if (lookup) {
+        isAsiaLocation = lookup.continent?.code == "AS"
+    }
+    reader.close()
     if (!isAsiaLocation) {
         // Modify the arguments
         const usingProxy = await getAvaliableProxy();
