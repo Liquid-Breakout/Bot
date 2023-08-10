@@ -1,4 +1,4 @@
-name: Build Backend Binary
+name: Build Worker Binary
 on: workflow_dispatch
 
 jobs:
@@ -45,7 +45,7 @@ jobs:
 
       - name: Install tools / dependencies
         shell: bash
-        run: npm ci
+        run: npm install
 
       - name: Build binary with nexe
         shell: bash
