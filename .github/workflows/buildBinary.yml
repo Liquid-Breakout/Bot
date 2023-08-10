@@ -38,6 +38,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      - name: Create worker.env
+        shell: bash
+        run: echo $WORKER_ENV >> dev_config/worker.env
+        env:
+          WORKER_ENV : ${{secrets.WORKERENV}}
+
       - name: Install Node
         uses: actions/setup-node@v3
         with:
