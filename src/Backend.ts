@@ -4,8 +4,78 @@ import mongoose from "mongoose";
 import decodeAudio from "./audioDecoder/index"
 import Meyda from "meyda";
 import zlib from "node:zlib"
+import { Log } from "./Logger";
 import FileParser from "./RobloxFileParser/FileParser"
 import { Instance } from "./RobloxFileParser/Instance";
+import maxmind, { CountryResponse } from 'maxmind';
+
+// For your concern, this is used to check if we need to use a proxy server
+// (As Roblox block IP address that mismatch cookie's continent :( )
+const ASIA_PROXY_SERVERS = [
+    {
+        protocol: "https",
+        host: "78.38.93.20",
+        port: 3128
+    },
+    {
+        protocol: "https",
+        host: "114.37.164.53",
+        port: 80
+    },
+    {
+        protocol: "https",
+        host: "116.80.58.42",
+        port: 80
+    },
+];
+let IP_ADDRESS = '0.0.0.0';
+(async () => {
+    const {publicIpv4} = await eval('import("public-ip")');
+    IP_ADDRESS = await publicIpv4();
+})();
+
+async function getAvaliableProxy(): Promise<any> {
+    let selectedProxy = undefined;
+    for (let proxyInfo of ASIA_PROXY_SERVERS) {
+        try {
+            const response = await axios({
+                url: "www.google.com",
+                proxy: proxyInfo
+            });
+            if (response && response.status == 200) {
+                selectedProxy = proxyInfo;
+                break;
+            }
+        } catch (_) {}
+    }
+    return selectedProxy;
+}
+
+async function axiosWithProxy(...args: any[]): Promise<any> {
+    let isAsiaLocation = false;
+    let {GeoIpDbName, open} = await eval('import("geolite2-redist")');
+    const reader = await open(
+        GeoIpDbName.Country,
+        (path: any) => maxmind.open<CountryResponse>(path)
+    )
+    const lookup = reader.get(IP_ADDRESS);
+    if (lookup) {
+        isAsiaLocation = lookup.continent?.code == "AS"
+    }
+    reader.close()
+    if (!isAsiaLocation) {
+        // Modify the arguments
+        const usingProxy = await getAvaliableProxy();
+        if (usingProxy) {
+            if (typeof args[0] === "string" && args[1] !== undefined) {
+                args[1].proxy = usingProxy;
+            } else if (args[0] !== undefined) {
+                args[0].proxy = usingProxy;
+            }
+        }
+    }
+    return (await axios(args[0], args[1]));
+}
 
 const ExternalFrequencyProcessorUrl = "https://externalsoundfrequencyprocessor.onrender.com";
 
@@ -154,7 +224,7 @@ class Backend {
 
     public async CheckIfUserOwnItem(AssetId: number, UserId: number) {
         try {
-            return (await axios(`https://inventory.roblox.com/v1/users/${UserId}/items/Asset/${AssetId}/is-owned`)).data
+            return (await axiosWithProxy(`https://inventory.roblox.com/v1/users/${UserId}/items/Asset/${AssetId}/is-owned`)).data
         } catch(_) {
             return false;
         }
@@ -163,7 +233,7 @@ class Backend {
         let SessionToken: string | undefined = undefined;
         let FetchError = "";
         try {
-            await axios({
+            await axiosWithProxy({
                 url: "https://auth.roblox.com/v2/logout",
                 method: "POST",
                 headers: {
@@ -179,7 +249,7 @@ class Backend {
         if (SessionToken == undefined)
             return [false, CreateOutput(
                 this.OutputCodes.ERR_NO_SESSION_TOKEN,
-                `Cannot whitelist: ${FetchError != "" ? "An error occured while attempting to call Roblox's API." : "Failed to obtain session token.\nContact the developer."}\n${FetchError}`
+                `${FetchError != "" ? "An error occured while attempting to call Roblox's API." : "Failed to obtain session token.\nContact the developer."}\n${FetchError}`
             )];
         return [true, SessionToken];
     }
@@ -203,7 +273,7 @@ class Backend {
 
         let ItemData, ErrorResponse;
         try {
-            ItemData = (await axios({
+            ItemData = (await axiosWithProxy({
                 url: `https://economy.roblox.com/v2/assets/${AssetId}/details`,
                 method: "GET",
             })).data;
@@ -252,7 +322,7 @@ class Backend {
                 }
             }
             try {
-                await axios({
+                await axiosWithProxy({
                     url: `https://economy.roblox.com/v1/purchases/products/${ProductId}`,
                     method: "POST",
                     headers: {
@@ -479,7 +549,7 @@ class Backend {
 
     public async Internal_GetPlaceFile(PlaceId: number, ExpressResponse: Response) {
         try {
-            const AxiosResponse = await axios({
+            const AxiosResponse = await axiosWithProxy({
                 url: `https://assetdelivery.roblox.com/v1/asset/?id=${PlaceId}`,
                 method: "GET",
                 responseType: "stream",
@@ -607,7 +677,7 @@ class Backend {
         
         let AssetData, ErrorResponse;
         try {
-            AssetData = (await axios({
+            AssetData = (await axiosWithProxy({
                 url: `https://assetdelivery.roblox.com/v1/assets/batch`,
                 method: "POST",
                 headers: {
@@ -621,7 +691,7 @@ class Backend {
                 }]
             })).data;
             if (AssetData[0]["errors"])
-                AssetData = (await axios({
+                AssetData = (await axiosWithProxy({
                     url: `https://assetdelivery.roblox.com/v1/assets/batch`,
                     method: "POST",
                     headers: {
@@ -722,7 +792,7 @@ class Backend {
         mongoose.connect(MongoDbUrl);
         this.SelectedServerType = ServerType;
 
-        console.log("Backend initialize");
+        Log("Backend initialize");
     }
 }
 export default Backend;

@@ -1,5 +1,6 @@
 import { ActivityType, ChatInputCommandInteraction, Client, Collection, Events, GatewayIntentBits, Interaction, Message, Partials, REST, Routes, User, WebhookClient } from "discord.js";
 import Backend from "./Backend";
+import {Log} from "./Logger";
 import fs from "fs"
 import path from "path"
 import axios from "axios"
@@ -81,7 +82,7 @@ class DiscordBot {
         try {
             await logWhitelistWebhookClient.send({ embeds: embeds });
         } catch (err) {
-            console.log(`Webhook error: ${err}`);
+            Log(`Webhook error: ${err}`);
         }
     }
 
@@ -135,12 +136,12 @@ class DiscordBot {
 			{ body: this._commandsData },
 		);
 
-		console.log(`DiscordBot: Successfully registered ${data.length} slash commands.`);
+		Log(`DiscordBot: Successfully registered ${data.length} slash commands.`);
 
         // Register events
         this.Client.on(Events.ClientReady, () => {
             this.Alive = true;
-            console.log("DiscordBot: Ready for command");
+            Log("DiscordBot: Ready for command");
             this.UpdatePresence("Pending");
         });
         this.Client.on(Events.MessageCreate, (async (Message: Message): Promise<any> => this.OnMessage(Message)));
@@ -150,7 +151,7 @@ class DiscordBot {
         this.Client.login(this._token);
         this.UpdatePresence("Pending");
 
-        console.log("DiscordBot: Login success, bot ready");
+        Log("DiscordBot: Login success, bot ready");
     }
 
     constructor(Backend: any, Prefix: string, BotToken?: string, ClientId?: string) {
@@ -195,14 +196,14 @@ class DiscordBot {
                 if (command.slashData)
                     this._commandsData.push(command.slashData);
 
-                //console.log(`DiscordBot: Loaded command file ${file} with name: ${commandName}`)
+                //Log(`DiscordBot: Loaded command file ${file} with name: ${commandName}`)
             } else {
-                console.log(`DiscordBot: Cannot load command file ${file} as it's missing data.`)
+                Log(`DiscordBot: Cannot load command file ${file} as it's missing data.`)
             }
             command = null;
         }
         
-        console.log("DiscordBot initialize");
+        Log("DiscordBot initialize");
     }
 }
 
