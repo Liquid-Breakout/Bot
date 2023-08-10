@@ -22,14 +22,13 @@ const BotClientId: string | undefined = process.env["BotClientId"];
 const MongoDBUri: string | undefined = process.env["MongoDBUri"];
 const ServerType: string = process.env["ServerType"] || "WEAK";
 const IsDevelopment: boolean = process.env["IsDevelopment"] == "1";
-const IsBalancer: boolean = process.env["ProcessType"] == "BALANCER" || cluster.isPrimary;
+const IsBalancer: boolean = process.env["ProcessType"] == "BALANCER" && cluster.isPrimary;
 const BalancerUrl: string = process.env["BalancerUrl"] || "localhost:8080"; // lol
-
-const AppBackend = new Backend(RobloxToken, RobloxAudioToken, MongoDBUri, ServerType);
-const WorkerProcessor = IsBalancer ? new Balancer(BalancerUrl) : new Worker(BalancerUrl);
 
 SetWorkerStatus(!IsBalancer);
 Log(`Launch parameter: Development: ${IsDevelopment}, Balancer: ${IsBalancer}`);
+const AppBackend = new Backend(RobloxToken, RobloxAudioToken, MongoDBUri, ServerType);
+const WorkerProcessor = IsBalancer ? new Balancer(BalancerUrl) : new Worker(BalancerUrl);
 WorkerProcessor.connect();
 
 let Bot: DiscordBot | undefined;

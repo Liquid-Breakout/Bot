@@ -64,7 +64,7 @@ class ServerFrontend {
 
             let backendReponse = await this._backend.ScanForMaliciousScripts(AssetId);
             Response.send(backendReponse);
-        })
+        }, false, 23)
         this._worker.bind('/getshareableid', (Request: any, Response: any) => {
             const RequestQuery = Request.query;
             let AssetId: number = RequestQuery.assetId ? parseInt(RequestQuery.assetId.toString()) : NaN;
@@ -150,7 +150,7 @@ class ServerFrontend {
 			}
 
             Response.send(await this._backend.GetSoundFrequenciesData(AudioId, Compress));
-        });
+        }, false, 20);
     }
 }
 
