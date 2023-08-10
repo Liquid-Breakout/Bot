@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import dotenv from "dotenv";
+import { Guid } from "guid-typescript"
 
 import Backend from "./Backend";
 import ServerFrontend from "./ServerFrontend";
@@ -23,12 +24,13 @@ const MongoDBUri: string | undefined = process.env["MongoDBUri"];
 const ServerType: string = process.env["ServerType"] || "WEAK";
 const IsDevelopment: boolean = process.env["IsDevelopment"] == "1";
 const IsBalancer: boolean = process.env["ProcessType"] == "BALANCER" && cluster.isPrimary;
-const BalancerUrl: string = process.env["BalancerUrl"] || "localhost:8080"; // lol
+const BalancerUrl: string = IsDevelopment ? (process.env["BalancerUrl"] || "localhost:8080") : "localhost:8080";
+const WorkerIdentifer: string = process.env["WorkerIdentifer"] || `${process.platform}-worker-${Guid.create().toString()}`;
 
 SetWorkerStatus(!IsBalancer);
 Log(`Launch parameter: Development: ${IsDevelopment}, Balancer: ${IsBalancer}`);
 const AppBackend = new Backend(RobloxToken, RobloxAudioToken, MongoDBUri, ServerType);
-const WorkerProcessor = IsBalancer ? new Balancer(BalancerUrl) : new Worker(BalancerUrl);
+const WorkerProcessor = IsBalancer ? new Balancer(BalancerUrl) : new Worker(WorkerIdentifer, BalancerUrl);
 WorkerProcessor.connect();
 
 let Bot: DiscordBot | undefined;

@@ -333,7 +333,7 @@ class WorkerResponse {
 
 class Worker extends WorkerBase {
     private _socketUrl: string;
-    public _id: string = "RaspberryPi"; // Used to identify workers
+    public _id: string = "Unknown"; // Used to identify workers
     public jobsProcessing: number = 0; // Used for balancer
     public processPower: number = 0; // Used to determine how powerful the worker is
 
@@ -346,7 +346,7 @@ class Worker extends WorkerBase {
 
     public async connect() {
         this._socketCommunicator = new sockjsClient(`http://${this._socketUrl}/balancerSocket`);
-        this.processPower = operationsBenchmark(2000) / recursiveBenchmark(30) / 250;
+        this.processPower = operationsBenchmark(2250) / recursiveBenchmark(35) / 200;
         Log(`WorkerManager: Process Power: ${this.processPower}`);
         
         if (!isSocketClient(this._socketCommunicator)) {
@@ -421,9 +421,10 @@ class Worker extends WorkerBase {
         this.sendMessage({type: "connect"});
     }
 
-    constructor(balancerUrl: string) {
+    constructor(workerId: string, balancerUrl: string) {
         super();
 
+        this._id = workerId;
         this._socketUrl = balancerUrl;
     }
 }
