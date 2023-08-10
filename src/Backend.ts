@@ -201,6 +201,22 @@ class Backend {
         "SCAN_RESULT_MALICIOUS": 10,
         "SCAN_RESULT_CLEAN": 11
     };
+    public ScriptsFilterList: {roblox: {[filterText: string]: {type: "function" | "string", report: string, exceptions?: string[]}}, server: {[filterText: string]: {type: "function" | "string", report: string, exceptions?: RegExp[]}}} = {
+        roblox: {
+            "loadasset": {type: "string", report: "Usage of :LoadAsset()"},
+            "httpservice": {type: "string", report: "Attempted to use HttpService"},
+            "loadstring": {type: "string", report: "Attempted to use loadstring"},
+            "getfenv": {type: "string", report: "Extremely suspicious (usage of getfenv)"},
+            "require": {type: "string", report: "Usage of require() id", exceptions: ["(%([%a%s%.%[%]%'%\"]+%))", "(%a*)"]}
+        },
+        server: {
+            "loadasset": {type: "string", report: "Usage of :LoadAsset()"},
+            "httpservice": {type: "string", report: "Attempted to use HttpService"},
+            "loadstring": {type: "string", report: "Attempted to use loadstring"},
+            "getfenv": {type: "string", report: "Extremely suspicious (usage of getfenv)"},
+            "require": {type: "string", report: "Usage of require() id", exceptions: [/(\((?!\d)[\w \.\[\]\'\"]+\))+/]}
+        }
+    };
 
     public LookupNameByOutputCode(Code: number) {
         return Object.keys(this.OutputCodes).find(key => this.OutputCodes[key] === Code) || "ERR_UNKNOWN";
@@ -421,24 +437,19 @@ class Backend {
             message: string
         }?]} = {};
         let isMalicious = false;
-        let filterList: {[filterText: string]: {type: "function" | "string", report: string, exception?: RegExp}} = {
-            "loadasset": {type: "string", report: "Usage of :LoadAsset()"},
-            "httpservice": {type: "string", report: "Attempted to use HttpService"},
-            "loadstring": {type: "string", report: "Attempted to use loadstring"},
-            "getfenv": {type: "string", report: "Extremely suspicious (usage of getfenv)"},
-            "require": {type: "string", report: "Usage of require() id", exception: /(\((?!\d)[\w \.\[\]\'\"]+\))+/}
-            // idk
-        }
+        let filterList: {[filterText: string]: {type: "function" | "string", report: string, exceptions?: RegExp[]}} = this.ScriptsFilterList.server;
 
-        function canMakeException(source: string, caughtEndIndex: number, filterData: {type: "function" | "string", report: string, exception?: RegExp}): boolean {
-            if (!filterData.exception) {
+        function canMakeException(source: string, caughtEndIndex: number, filterData: {type: "function" | "string", report: string, exceptions?: RegExp[]}): boolean {
+            if (!filterData.exceptions) {
                 return false;
             }
 
-            const found = source.match(filterData.exception);
-            if (found) {
-                return found.index == caughtEndIndex + 1;
-            }
+            filterData.exceptions.forEach((exception) => {
+                const found = source.match(exception);
+                if (found) {
+                    return found.index == caughtEndIndex + 1;
+                }
+            })
             return false;
         }
 

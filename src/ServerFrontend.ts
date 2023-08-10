@@ -92,7 +92,19 @@ class ServerFrontend {
 
             Response.send(this._backend.IDConverter.Number(AssetId.toString()));
         });
-        this._worker.bind('/internal/getplacefile', async (Request: any, Response: any) => {
+        this._worker.bind('/queryscriptfilter', async (Request: any, Response: any) => {
+            const RequestQuery = Request.query;
+            let ApiKey: string = RequestQuery.apiKey ? RequestQuery.apiKey.toString() : "NULL";
+
+            if (ApiKey == "NULL" || !(await this._backend.IsValidApiKey(ApiKey))) {
+				Response.status(400).send("Invalid apiKey param or API key has been invalidated.")
+				return;
+            }
+
+            Response.send(JSON.stringify(this._backend.ScriptsFilterList.roblox));
+        }, true);
+
+         this._worker.bind('/internal/getplacefile', async (Request: any, Response: any) => {
             const RequestQuery = Request.query;
             let PlaceId: number = RequestQuery.placeId ? parseInt(RequestQuery.placeId.toString()) : NaN
             let ApiKey: string = RequestQuery.apiKey ? RequestQuery.apiKey.toString() : "NULL";
