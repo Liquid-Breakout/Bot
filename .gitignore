@@ -6,4 +6,3 @@ build
 app
 binary
 dev_config/balancer.env
-dev_config/worker.env
