@@ -5,6 +5,7 @@ import { Guid } from "guid-typescript"
 import express, {Express, Request, Response} from "express"
 import { Log, Warn } from "./Logger";
 import { createServer } from "http"
+import { recursiveBenchmark, operationsBenchmark } from "./CpuBenchmark"
 
 // Type guards
 function isSocketClient(socket: any): socket is WebSocket {
@@ -49,7 +50,8 @@ class Balancer extends WorkerBase {
     private _jobsData: {[url: string]: {
         workersReady: string[], // Keep track of workers ready to process
         workersFailed: string[], // Keep track of workers failed to do the job
-        results: {[jobId: string]: any} // Keep track of results workers returned
+        results: {[jobId: string]: any}, // Keep track of results workers returned
+        processPowerRequired: number // How powerful the worker needs to be to do the job
     }} = {};
 
     public WorkerAvaliable: boolean = false;
@@ -60,7 +62,6 @@ class Balancer extends WorkerBase {
             if (data.worker) {
                 if (this._registeredWorkers[data.worker]) {
                     this._registeredWorkers[data.worker].connection.write(sendingData);
-                    Log(`WorkerManager: Sent message to worker ${data.worker}: ${JSON.stringify(data)}`);
                 } else {
                     Warn(`WorkerManager: Worker ${data.worker} is not connected, cannot send message`);
                 }
@@ -68,7 +69,6 @@ class Balancer extends WorkerBase {
                 Object.values(this._registeredWorkers).forEach((workerData) => {
                     workerData.connection.write(sendingData);
                 })
-                Log(`WorkerManager: Sent message to all workers: ${JSON.stringify(data)}`);
             }
         }
     }
@@ -92,7 +92,6 @@ class Balancer extends WorkerBase {
                 if (!receivedData || !receivedData.workerInfo) {
                     return;
                 }
-                Log(`WorkerManager: Received valid message: ${message}`);
                 if (receivedData.type == "connect") {
                     if (this._registeredWorkers[receivedData.workerInfo.id] === undefined) {
                         Log(`WorkerManager: Registered worker ${receivedData.workerInfo.id}`);
@@ -162,12 +161,13 @@ class Balancer extends WorkerBase {
         }, 10000); // Every 10 seconds
     }
 
-    public override bind(url: string, processFunc: any, mustBeBalancer?: boolean) {
+    public override bind(url: string, processFunc: any, mustBeBalancer?: boolean, processPower?: number) {
         this._bindedUrls[url] = processFunc;
         this._jobsData[url] = {
             workersReady: [],
             workersFailed: [],
-            results: {}
+            results: {},
+            processPowerRequired: processPower || 0
         };
 
         this._serverApp.get(url, async (Request: Request, Response: Response) => {
@@ -193,23 +193,41 @@ class Balancer extends WorkerBase {
 
                         if (workerAInfo && workerBInfo) {
                             if (workerAInfo.jobsProcessing < workerBInfo.jobsProcessing) {
+                                let push = -1
                                 if (workerAInfo.processPower > workerBInfo.processPower) {
-                                    return 1;
-                                } else if (workerAInfo.processPower < workerBInfo.processPower) {
-                                    return -1;
+                                    push = 1;
                                 }
+                                if (workerAInfo.processPower >= this._jobsData[url].processPowerRequired) {
+                                    push = 1;
+                                } else if (workerBInfo.processPower >= this._jobsData[url].processPowerRequired) {
+                                    push = -1;
+                                }
+                                return push
                             } else if (workerBInfo.jobsProcessing < workerAInfo.jobsProcessing) {
+                                let push = -1
                                 if (workerBInfo.processPower > workerAInfo.processPower) {
-                                    return 1;
-                                } else if (workerBInfo.processPower < workerAInfo.processPower) {
-                                    return -1;
+                                    push = 1;
                                 }
+                                if (workerBInfo.processPower >= this._jobsData[url].processPowerRequired) {
+                                    push = 1;
+                                } else if (workerAInfo.processPower >= this._jobsData[url].processPowerRequired) {
+                                    push = -1;
+                                }
+                                return push
                             }
                         } else {
                             if (workerAInfo) {
-                                return 1;
+                                if (workerAInfo.processPower >= this._jobsData[url].processPowerRequired) {
+                                    return 1;
+                                } else {
+                                    return -1
+                                }
                             } else {
-                                return -1;
+                                if (workerBInfo.processPower >= this._jobsData[url].processPowerRequired) {
+                                    return 1;
+                                } else {
+                                    return -1
+                                }
                             }
                         }
 
@@ -317,17 +335,19 @@ class Worker extends WorkerBase {
     private _socketUrl: string;
     public _id: string = "RaspberryPi"; // Used to identify workers
     public jobsProcessing: number = 0; // Used for balancer
+    public processPower: number = 0; // Used to determine how powerful the worker is
 
     public sendMessage(data: any) {
-        data.workerInfo = {id: this._id, jobsProcessing: this.jobsProcessing, processPower: 1};
+        data.workerInfo = {id: this._id, jobsProcessing: this.jobsProcessing, processPower: this.processPower};
         if (isSocketClient(this._socketCommunicator)) {
             this._socketCommunicator.send(JSON.stringify(data));
-            Log(`WorkerManager: Sent message to Balancer: ${JSON.stringify(data)}`);
         }
     }
 
     public async connect() {
         this._socketCommunicator = new sockjsClient(`http://${this._socketUrl}/balancerSocket`);
+        this.processPower = operationsBenchmark(2000) / recursiveBenchmark(30) / 250;
+        Log(`WorkerManager: Process Power: ${this.processPower}`);
         
         if (!isSocketClient(this._socketCommunicator)) {
             Warn("Socket object not a Client (HUHHH???)")
@@ -346,6 +366,7 @@ class Worker extends WorkerBase {
                     this.sendMessage({type: "workerReady", url: receivedData.url});
                 }
             } else if (receivedData.type == "healthCheck") {
+                Log(`WorkerManager: Responding to Balancer's health check`);
                 this.sendMessage({type: "workerHealth"});
             } else if (receivedData.type == "disconnected") {
                 Log(`WorkerManager: Disconnected, reconnecting to Balancer`);
@@ -391,6 +412,7 @@ class Worker extends WorkerBase {
 
         const OpenState: number = sockjsClient.OPEN;
         const ConnectingState: number = sockjsClient.CONNECTING;
+        Log(`WorkerManager: Waiting for Balancer to establish connection...`);
         if (this._socketCommunicator.readyState != OpenState || this._socketCommunicator.readyState == ConnectingState) {
             await sleepUntil(() => this._socketCommunicator && isSocketClient(this._socketCommunicator) && this._socketCommunicator.readyState == OpenState);
         }
@@ -401,6 +423,7 @@ class Worker extends WorkerBase {
 
     constructor(balancerUrl: string) {
         super();
+
         this._socketUrl = balancerUrl;
     }
 }
