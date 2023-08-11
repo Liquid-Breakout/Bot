@@ -95,8 +95,8 @@ jobs:
           commands: |
             apt update
             apt -y install curl python3 gcc g++ make python3-pip
-            curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/master/install.sh | bash
-            nvm install v16
+            curl -s https://deb.nodesource.com/setup_16.x | sudo bash
+            apt -y install nodejs
             npm run build_app_worker
 
       - name: Create binary archive
