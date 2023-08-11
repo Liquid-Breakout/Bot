@@ -76,7 +76,7 @@ jobs:
         shell: bash
         env:
           WORKER_ENV : ${{ secrets.WORKERENV }}
-        run: echo "$WORKER_ENV" >> dev_config/worker.env
+        run: echo "$WORKER_ENV" > dev_config/worker.env
 
       - name: Build binary with nexe
         shell: bash
