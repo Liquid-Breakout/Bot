@@ -413,7 +413,7 @@ class Worker extends WorkerBase {
         const OpenState: number = sockjsClient.OPEN;
         const ConnectingState: number = sockjsClient.CONNECTING;
         Log(`WorkerManager: Waiting for Balancer to establish connection...`);
-        if (this._socketCommunicator.readyState != OpenState || this._socketCommunicator.readyState == ConnectingState) {
+        if (this._socketCommunicator.readyState != OpenState && this._socketCommunicator.readyState == ConnectingState) {
             await sleepUntil(() => this._socketCommunicator && isSocketClient(this._socketCommunicator) && this._socketCommunicator.readyState == OpenState);
         }
         // Connect to Balancer
