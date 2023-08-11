@@ -64,7 +64,6 @@ jobs:
           key: ${{ runner.os }}-${{ matrix.arch }}-nodejsnexe-${{ env.cache-name }}
           restore-keys: |
             ${{ runner.os }}-${{ matrix.arch }}-nodejsnexe-
-            ${{ runner.os }}-nodejsnexe-
 
       - name: Install build tools for compiling Node.js (Windows)
         if: runner.os == 'Windows'
