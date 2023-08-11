@@ -54,16 +54,14 @@ jobs:
         run: npm install
 
       - name: Install build tools for compiling Node.js
-        uses: knicknic/os-specific-run@v1.0.3
-        with:
-          macos: echo No need.
-          linux: echo No need.
-          windows: |
-            Set-ExecutionPolicy Unrestricted -Force
-            iex ((New-Object System.Net.WebClient).DownloadString('https://boxstarter.org/bootstrapper.ps1'))
-            get-boxstarter -Force
-            Install-BoxstarterPackage https://raw.githubusercontent.com/nodejs/node/HEAD/tools/bootstrap/windows_boxstarter -DisableReboots
-            refreshenv
+        shell: bash
+        run: |
+          if [ "${{ matrix.runner-os }}" = "windows-latest" ]; then
+            choco install python python2 -y
+            choco install visualstudio2019buildtools -y
+            choco install visualstudio2019-workload-vctools -y
+            choco install nasm -y
+          fi
 
       - name: Build binary with nexe
         shell: bash
