@@ -36,7 +36,7 @@ jobs:
 
           - name: Linux aarch64
             arch: aarch64
-            runner-os: ubuntu-latest
+            runner-os: self-hosted
             artifact-name: LBBackend-Worker-${{ needs.init.outputs.version }}-linux-aarch64
 
     name: Build - ${{ matrix.name }}
@@ -81,23 +81,8 @@ jobs:
         run: echo "$WORKER_ENV" > dev_config/worker.env
 
       - name: Build binary with nexe
-        if: ${{ matrix.arch == 'x86_64' }}
         shell: bash
         run: npm run build_app_worker
-
-      - name: Build binary with nexe (aarch64)
-        if: ${{ matrix.arch == 'aarch64' }}
-        uses: pguyot/arm-runner-action@HEAD
-        with:
-          base_image: raspi_4_bullseye:20230102
-          bind_mount_repository: true
-          image_additional_mb: 1024
-          commands: |
-            apt update
-            apt -y install curl python3 gcc g++ make python3-pip
-            curl -s https://deb.nodesource.com/setup_16.x | bash
-            apt -y install nodejs
-            npm run build_app_worker
 
       - name: Create binary archive
         shell: bash
