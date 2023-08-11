@@ -8,6 +8,7 @@ import { Log } from "./Logger";
 import FileParser from "./RobloxFileParser/FileParser"
 import { Instance } from "./RobloxFileParser/Instance";
 import maxmind, { CountryResponse } from 'maxmind';
+import { publicIpv4 } from "./public-ip";
 
 // For your concern, this is used to check if we need to use a proxy server
 // (As Roblox block IP address that mismatch cookie's continent :( )
@@ -30,7 +31,6 @@ const ASIA_PROXY_SERVERS = [
 ];
 let IP_ADDRESS = '0.0.0.0';
 (async () => {
-    const {publicIpv4} = await eval('import("public-ip")');
     IP_ADDRESS = await publicIpv4();
 })();
 

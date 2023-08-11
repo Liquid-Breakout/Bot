@@ -21,36 +21,36 @@ export default async function audioDecode (buf) {
 
 export const decoders = {
 	async oga(buf) {
-		let { OggVorbisDecoder } = await eval("import('@wasm-audio-decoders/ogg-vorbis')");
+		let { OggVorbisDecoder } = await import("./decoders/ogg-vorbis");
 		const decoder = new OggVorbisDecoder()
 		await decoder.ready;
 		return (decoders.oga = async buf => buf && await createBuffer(await decoder.decodeFile(buf)))(buf)
 	},
 	async mp3(buf) {
-		const { MPEGDecoder } = await eval("import('mpg123-decoder')");
+		const { MPEGDecoder } = await require("./decoders/mpg123-decoder");
 		const decoder = new MPEGDecoder()
 		await decoder.ready;
 		return (decoders.mp3 = async buf => buf && await createBuffer(decoder.decode(buf)))(buf)
 	},
 	async flac(buf) {
-		const { FLACDecoder } = await eval("import('@wasm-audio-decoders/flac')");
+		const { FLACDecoder } = await import("./decoders/flac");
 		const decoder = new FLACDecoder()
 		await decoder.ready;
 		return (decoders.mp3 = async buf => buf && await createBuffer(await decoder.decode(buf)))(buf)
 	},
 	async opus(buf) {
-		const { OggOpusDecoder } = await eval("import('ogg-opus-decoder')");
+		const { OggOpusDecoder } = await import("./decoders/ogg-opus-decoder");
 		const decoder = new OggOpusDecoder()
 		await decoder.ready;
 		return (decoders.opus = async buf => buf && await createBuffer(await decoder.decodeFile(buf)))(buf)
 	},
 	async wav(buf) {
-		let module = await eval("import('node-wav')");
+		let module = await import("./decoders/node-wav");
 		let { decode } = module.default
 		return (decoders.wav = async buf => buf && await createBuffer(decode(buf)) )(buf)
 	},
 	async qoa(buf) {
-		let { decode } = await eval("import('qoa-format')");
+		let { decode } = await import("./decoders/qoa-format");
 		return (decoders.qoa = async buf => buf && await createBuffer(decode(buf)) )(buf)
 	}
 }
