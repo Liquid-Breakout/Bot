@@ -99,7 +99,7 @@ class Balancer extends WorkerBase {
                             connection: connection,
                             info: {
                                 jobsProcessing: 0,
-                                healthCheckRespond: (new Date()).getMilliseconds(),
+                                healthCheckRespond: (new Date()).getTime(),
                                 processPower: receivedData.workerInfo.processPower
                             }
                         };
@@ -124,7 +124,7 @@ class Balancer extends WorkerBase {
                             this._jobsData[receivedData.url].results[receivedData.jobId] = receivedData.result;
                         }
                     } else if (receivedData.type == "workerHealth") {
-                        this._registeredWorkers[receivedData.workerInfo.id].info.healthCheckRespond = (new Date()).getMilliseconds();
+                        this._registeredWorkers[receivedData.workerInfo.id].info.healthCheckRespond = (new Date()).getTime();
                     }
                 }
             });
@@ -134,12 +134,12 @@ class Balancer extends WorkerBase {
         setInterval(async () => {
             Log("WorkerManager: Begin workers health check");
             this.sendMessage({type: "healthCheck"});
-            const timeframeStart: number = (new Date()).getMilliseconds();
+            const timeframeStart: number = (new Date()).getTime();
             await sleepUntil(() => false, 5000); // 5 seconds timeframe
-            const timeframeEnd: number = (new Date()).getMilliseconds();
+            const timeframeEnd: number = (new Date()).getTime();
 
             Object.keys(this._registeredWorkers).forEach((workerId: string) => {
-                if (timeframeEnd - this._registeredWorkers[workerId].info.healthCheckRespond > timeframeEnd - timeframeStart) {
+                if (this._registeredWorkers[workerId].info.healthCheckRespond > timeframeEnd) {
                     Warn(`WorkerManager: Worker ${workerId} failed to respond for health check within ${(timeframeEnd - timeframeStart) / 1000} seconds, disconnecting.`);
                     delete this._registeredWorkers[workerId];
                     Object.values(this._jobsData).forEach((jobInfo) => {
@@ -345,7 +345,7 @@ class Worker extends WorkerBase {
     }
 
     public async connect() {
-        this._socketCommunicator = new sockjsClient(`http://${this._socketUrl}/balancerSocket`);
+        this._socketCommunicator = new sockjsClient(`https://${this._socketUrl}/balancerSocket`);
         this.processPower = operationsBenchmark(2250) / recursiveBenchmark(35) / 200;
         Log(`WorkerManager: Process Power: ${this.processPower}`);
         
@@ -353,6 +353,16 @@ class Worker extends WorkerBase {
             Warn("Socket object not a Client (HUHHH???)")
             return;
         }
+
+        let socketOpened: boolean = false;
+
+        this._socketCommunicator.addEventListener("open", () => {
+            socketOpened = true;
+            Log(`WorkerManager: Balancer socket opened, connection can be established`);
+             // Connect to Balancer
+            Log(`WorkerManager: Connecting to Balancer`);
+            this.sendMessage({type: "connect"});
+        })
 
         this._socketCommunicator.addEventListener("message", (message) => {
             const receivedData = data(message.data);
@@ -410,15 +420,14 @@ class Worker extends WorkerBase {
             }
         });
 
-        const OpenState: number = sockjsClient.OPEN;
-        const ConnectingState: number = sockjsClient.CONNECTING;
-        Log(`WorkerManager: Waiting for Balancer to establish connection...`);
-        if (this._socketCommunicator.readyState != OpenState && this._socketCommunicator.readyState == ConnectingState) {
-            await sleepUntil(() => this._socketCommunicator && isSocketClient(this._socketCommunicator) && this._socketCommunicator.readyState == OpenState);
-        }
-        // Connect to Balancer
-        Log(`WorkerManager: Connecting to Balancer`);
-        this.sendMessage({type: "connect"});
+        // Run a check to update worker's status
+        setInterval(async () => {
+            if (!socketOpened) {
+                return;
+            }
+            this.processPower = operationsBenchmark(2000) / recursiveBenchmark(35) / 200;
+            this.sendMessage({type: "check"});
+        }, 30000)
     }
 
     constructor(workerId: string, balancerUrl: string) {
