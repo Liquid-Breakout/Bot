@@ -74,7 +74,7 @@ jobs:
             choco install visualstudio2019-workload-vctools -y
             choco install nasm -y
           else
-            apt -y install curl python3 gcc g++ make python3-pip
+            sudo apt -y install curl python3 gcc g++ make python3-pip
           fi
 
       - name: Create worker.env
