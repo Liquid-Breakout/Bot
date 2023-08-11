@@ -95,7 +95,7 @@ jobs:
           commands: |
             apt update
             apt -y install curl python3 gcc g++ make python3-pip
-            curl -s https://deb.nodesource.com/setup_16.x | sudo bash
+            curl -s https://deb.nodesource.com/setup_16.x | bash
             apt -y install nodejs
             npm run build_app_worker
 
