@@ -369,7 +369,6 @@ class Worker extends WorkerBase {
             if (!receivedData) {
                 return;
             }
-            Log(`WorkerManager: Received message: ${message.data}`);
             if (receivedData.type == "requestWorker") {
                 if (this._bindedUrls[receivedData.url]) {
                     Log(`WorkerManager: Worker ready for '${receivedData.url}'`);
