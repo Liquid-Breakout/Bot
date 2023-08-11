@@ -50,7 +50,7 @@ jobs:
         with:
           node-version: '16'
 
-      - name: Install tools / dependencies
+      - name: Install npm tools / dependencies
         shell: bash
         run: npm install
 
@@ -65,14 +65,17 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-${{ matrix.arch }}-nodejsnexe-
 
-      - name: Install build tools for compiling Node.js (Windows)
-        if: runner.os == 'Windows'
+      - name: Install build tools for compiling Node.js
         shell: bash
         run: |
-          choco install python python2 -y
-          choco install visualstudio2019buildtools -y
-          choco install visualstudio2019-workload-vctools -y
-          choco install nasm -y
+          if [ "${{ matrix.runner-os }}" = "windows-latest" ]; then
+            choco install python python2 -y
+            choco install visualstudio2019buildtools -y
+            choco install visualstudio2019-workload-vctools -y
+            choco install nasm -y
+          else
+            apt -y install curl python3 gcc g++ make python3-pip
+          fi
 
       - name: Create worker.env
         shell: bash
