@@ -67,7 +67,7 @@ jobs:
             ${{ runner.os }}-nodejsnexe-
 
       - name: Install build tools for compiling Node.js (Windows)
-        if: ${{ matrix.runner-os }} == 'windows-latest'
+        if: runner.os == 'Windows'
         shell: bash
         run: |
           choco install python python2 -y
