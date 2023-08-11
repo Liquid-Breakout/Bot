@@ -1,4 +1,3 @@
-import compression from "compression";
 import Backend from "./Backend";
 import { DiscordBot } from "./DiscordBot";
 import { Balancer, Worker } from "./WorkerManager"

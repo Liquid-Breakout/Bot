@@ -1,4 +1,3 @@
-import axios, { AxiosPromise, AxiosRequestConfig } from "axios"
 import sockjsServer from "sockjs"
 import sockjsClient from "sockjs-client"
 import { Guid } from "guid-typescript"
