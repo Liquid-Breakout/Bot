@@ -93,9 +93,9 @@ jobs:
           bind_mount_repository: true
           image_additional_mb: 1024
           commands: |
+            sudo apt -y install curl python3 gcc g++ make python3-pip
             curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/master/install.sh | bash
             nvm install v16
-            sudo apt -y install python3 gcc g++ make python3-pip
             npm run build_app_worker
 
       - name: Create binary archive
