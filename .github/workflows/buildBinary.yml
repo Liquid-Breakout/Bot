@@ -1,12 +1,16 @@
 name: Build Worker Binary
+
 on: workflow_dispatch
+
+permissions:
+  contents: write
 
 jobs:
   init:
     name: Initialize
     runs-on: ubuntu-latest
     outputs:
-        version: ${{ steps.package-version.outputs.current-version}}
+        version: ${{ steps.get_version.outputs.current-version }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
