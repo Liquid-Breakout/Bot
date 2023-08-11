@@ -88,9 +88,9 @@ jobs:
 
       - name: Build binary with nexe (aarch64)
         if: ${{ matrix.arch == 'aarch64' }}
-        uses: pguyot/arm-runner-action@v2
+        uses: pguyot/arm-runner-action
         with:
-          base_image: raspi_4_bullseye:20220121
+          base_image: raspi_4_bullseye:20230102
           bind_mount_repository: true
           image_additional_mb: 1024
           commands: |
