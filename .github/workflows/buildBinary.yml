@@ -93,6 +93,7 @@ jobs:
           bind_mount_repository: true
           image_additional_mb: 1024
           commands: |
+            apt update
             apt -y install curl python3 gcc g++ make python3-pip
             curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/master/install.sh | bash
             nvm install v16
