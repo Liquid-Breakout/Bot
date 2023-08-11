@@ -57,6 +57,17 @@ jobs:
         shell: bash
         run: npm install
 
+      - name: Cache compiled node.js binary from nexe
+        id: cache-nodejs
+        uses: actions/cache@v3
+        env:
+          cache-name: cache-nexe-compile-output
+        with:
+          path: ~/.nexe
+          key: ${{ runner.os }}-nodejsnexe-${{ env.cache-name }}
+          restore-keys: |
+            ${{ runner.os }}-nodejsnexe-
+
       - name: Install build tools for compiling Node.js
         shell: bash
         run: |
