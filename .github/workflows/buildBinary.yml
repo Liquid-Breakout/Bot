@@ -59,8 +59,6 @@ jobs:
           if [ "${{ matrix.runner-os }}" = "windows-latest" ]; then
             choco install visualstudio2019buildtools
             choco install visualstudio2019-workload-vctools
-          else
-            sudo apt install make
           fi
 
       - name: Build binary with nexe
