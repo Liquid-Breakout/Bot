@@ -42,12 +42,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Create worker.env
-        shell: bash
-        run: echo $WORKER_ENV >> dev_config/worker.env
-        env:
-          WORKER_ENV : ${{secrets.WORKERENV}}
-
       - name: Install Node
         uses: actions/setup-node@v3
         with:
@@ -77,6 +71,12 @@ jobs:
             choco install visualstudio2019-workload-vctools -y
             choco install nasm -y
           fi
+
+      - name: Create worker.env
+        shell: bash
+        env:
+          WORKER_ENV : ${{ secrets.WORKERENV }}
+        run: echo "$WORKER_ENV" >> dev_config/worker.env
 
       - name: Build binary with nexe
         shell: bash
