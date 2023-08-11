@@ -24,7 +24,7 @@ const MongoDBUri: string | undefined = process.env["MongoDBUri"];
 const ServerType: string = process.env["ServerType"] || "WEAK";
 const IsDevelopment: boolean = process.env["IsDevelopment"] == "1";
 const IsBalancer: boolean = process.env["ProcessType"] == "BALANCER" && cluster.isPrimary;
-const BalancerUrl: string = IsDevelopment ? (process.env["BalancerUrl"] || "localhost:8080") : "localhost:8080";
+const BalancerUrl: string = IsDevelopment ? "localhost:8080" : (process.env["BalancerUrl"] || "localhost:8080");
 const WorkerIdentifer: string = process.env["WorkerIdentifer"] || `${process.platform}-worker-${Guid.create().toString()}`;
 
 SetWorkerStatus(!IsBalancer);
