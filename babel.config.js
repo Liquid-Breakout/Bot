@@ -5,8 +5,7 @@ module.exports = function (api) {
         [
           "@babel/preset-env",
             {
-                "useBuiltIns": "entry",
-                "corejs": "3.22"
+                modules: "commonjs"
             }
         ], 
         "@babel/preset-typescript"
