@@ -25,14 +25,17 @@ jobs:
       matrix:
         include:
           - name: Windows x86_64
+            arch: x86_64
             runner-os: windows-latest
             artifact-name: LBBackend-Worker-${{ needs.init.outputs.version }}-windows-x86_64
 
           - name: Linux x86_64
+            arch: x86_64
             runner-os: ubuntu-latest
             artifact-name: LBBackend-Worker-${{ needs.init.outputs.version }}-linux-x86_64
 
           - name: Linux aarch64
+            arch: aarch64
             runner-os: ubuntu-latest
             artifact-name: LBBackend-Worker-${{ needs.init.outputs.version }}-linux-aarch64
 
@@ -58,19 +61,19 @@ jobs:
           cache-name: cache-nexe-compile-output
         with:
           path: ~/.nexe
-          key: ${{ runner.os }}-nodejsnexe-${{ env.cache-name }}
+          key: ${{ runner.os }}-${{ matrix.arch }}-nodejsnexe-${{ env.cache-name }}
           restore-keys: |
+            ${{ runner.os }}-${{ matrix.arch }}-nodejsnexe-
             ${{ runner.os }}-nodejsnexe-
 
-      - name: Install build tools for compiling Node.js
+      - name: Install build tools for compiling Node.js (Windows)
+        if: ${{ matrix.runner-os }} == 'windows-latest'
         shell: bash
         run: |
-          if [ "${{ matrix.runner-os }}" = "windows-latest" ]; then
-            choco install python python2 -y
-            choco install visualstudio2019buildtools -y
-            choco install visualstudio2019-workload-vctools -y
-            choco install nasm -y
-          fi
+          choco install python python2 -y
+          choco install visualstudio2019buildtools -y
+          choco install visualstudio2019-workload-vctools -y
+          choco install nasm -y
 
       - name: Create worker.env
         shell: bash
@@ -79,8 +82,22 @@ jobs:
         run: echo "$WORKER_ENV" > dev_config/worker.env
 
       - name: Build binary with nexe
+        if: ${{ matrix.arch }} == 'x86_64'
         shell: bash
         run: npm run build_app_worker
+
+      - name: Build binary with nexe (aarch64)
+        if: ${{ matrix.arch }} == 'aarch64'
+        uses: pguyot/arm-runner-action@v2
+        with:
+          base_image: raspi_4_bullseye:20230102
+          bind_mount_repository: true
+          image_additional_mb: 1024
+          commands: |
+            curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/master/install.sh | bash
+            nvm install v16
+            sudo apt -y install python3 gcc g++ make python3-pip
+            npm run build_app_worker
 
       - name: Create binary archive
         shell: bash
