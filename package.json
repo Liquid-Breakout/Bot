@@ -7,8 +7,10 @@
     "build": "npx babel src --out-dir build --extensions \".js,.ts\" --ignore \"src/**/*.d.ts\"",
     "build_app": "npm run build && bash scripts/build_app.sh",
     "build_app_binary": "node scripts/run_binary_compiler",
-    "build_app_balancer": "npm run build_app && cp -f dev_config/balancer.env app/dev_config/.env && npm run build_app_binary -- LBBackend_Balancer",
-    "build_app_worker": "npm run build_app && cp -f dev_config/worker.env app/dev_config/.env && npm run build_app_binary -- LBBackend_Worker",
+    "build_app_balancer": "npm run build_app && cp -f dev_config/balancer.env app/dev_config/.env && npm run build_app_binary -- LBBackend_Balancer x64",
+    "build_app_worker": "npm run build_app && cp -f dev_config/worker.env app/dev_config/.env && npm run build_app_binary -- LBBackend_Worker x64",
+    "build_app_balancer_arm64": "npm run build_app && cp -f dev_config/balancer.env app/dev_config/.env && npm run build_app_binary -- LBBackend_Balancer arm64",
+    "build_app_worker_arm64": "npm run build_app && cp -f dev_config/worker.env app/dev_config/.env && npm run build_app_binary -- LBBackend_Worker arm64",
     "start": "npm run build && node build/index.js",
     "start:dev": "npx nodemon"
   },

@@ -36,7 +36,7 @@ jobs:
 
           - name: Linux aarch64
             arch: aarch64
-            runner-os: self-hosted
+            runner-os: ubuntu-latest
             artifact-name: LBBackend-Worker-${{ needs.init.outputs.version }}-linux-aarch64
 
     name: Build - ${{ matrix.name }}
@@ -85,7 +85,11 @@ jobs:
 
       - name: Build binary with nexe
         shell: bash
-        run: npm run build_app_worker
+        run: |
+          if [ "${{ matrix.arch }}" = "x86_64" ]; then
+            npm run build_app_worker
+          else
+            npm run build_app_worker_arm64
 
       - name: Create binary archive
         shell: bash
