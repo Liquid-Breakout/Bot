@@ -207,7 +207,7 @@ class Backend {
             "httpservice": {type: "string", report: "Attempted to use HttpService"},
             "loadstring": {type: "string", report: "Attempted to use loadstring"},
             "getfenv": {type: "string", report: "Extremely suspicious (usage of getfenv)"},
-            "require": {type: "string", report: "Usage of require() id", exceptions: ["(%([%a%s%.%:%[%]%'%\"]+%))", "(%a*)"]}
+            "require": {type: "string", report: "Usage of require() id", exceptions: ["(%([%a%s%.%:%[%]%'%\"%(%)]+%))", "(%a*)"]}
         },
         server: {
             "loadasset": {type: "string", report: "Usage of :LoadAsset()"},
