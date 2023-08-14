@@ -90,6 +90,7 @@ jobs:
             npm run build_app_worker
           else
             npm run build_app_worker_arm64
+          fi
 
       - name: Create binary archive
         shell: bash
