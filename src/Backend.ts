@@ -9,51 +9,64 @@ import FileParser from "./RobloxFileParser/FileParser"
 import { Instance } from "./RobloxFileParser/Instance";
 import maxmind, { CountryResponse } from 'maxmind';
 import { publicIpv4 } from "./public-ip";
+import {GeoIpDbName, open} from "./geolite2-redist/dist/index"
 
 // For your concern, this is used to check if we need to use a proxy server
 // (As Roblox block IP address that mismatch cookie's continent :( )
 const ASIA_PROXY_SERVERS = [
     {
         protocol: "https",
-        host: "78.38.93.20",
+        host: "103.133.221.251",
+        port: 80
+    },
+    {
+        protocol: "https",
+        host: "125.209.110.124",
+        port: 8080,
+    },
+    {
+        protocol: "https",
+        host: "35.221.203.144",
         port: 3128
-    },
-    {
-        protocol: "https",
-        host: "114.37.164.53",
-        port: 80
-    },
-    {
-        protocol: "https",
-        host: "116.80.58.42",
-        port: 80
-    },
+    }
 ];
 let IP_ADDRESS = '0.0.0.0';
 (async () => {
     IP_ADDRESS = await publicIpv4();
 })();
 
+async function sleepUntil(checkFunc: any, timeout?: number) {
+    return new Promise((resolve, _) => {
+        const startTime = new Date();
+        const waitInterval = setInterval(() => {
+            if (timeout ? (checkFunc() || (new Date()).getTime() - startTime.getTime() >= timeout) : checkFunc()) {
+                clearInterval(waitInterval);
+                resolve(null);
+            }
+        }, 20);
+    })
+}
+
 async function getAvaliableProxy(): Promise<any> {
-    let selectedProxy = undefined;
+    let selectedProxy: any = undefined;
     for (let proxyInfo of ASIA_PROXY_SERVERS) {
-        try {
-            const response = await axios({
-                url: "www.google.com",
-                proxy: proxyInfo
-            });
+        axios({
+            url: "www.google.com",
+            proxy: proxyInfo
+        }).then((response) => {
             if (response && response.status == 200) {
                 selectedProxy = proxyInfo;
-                break;
             }
-        } catch (_) {}
+        })
+        .catch(e => {});
     }
+    await sleepUntil(() => selectedProxy != undefined, 5000);
+
     return selectedProxy;
 }
 
 async function axiosWithProxy(...args: any[]): Promise<any> {
     let isAsiaLocation = false;
-    let {GeoIpDbName, open} = await eval('import("geolite2-redist")');
     const reader = await open(
         GeoIpDbName.Country,
         (path: any) => maxmind.open<CountryResponse>(path)

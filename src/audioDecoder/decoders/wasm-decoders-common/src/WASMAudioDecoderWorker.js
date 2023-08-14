@@ -5,7 +5,7 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports["default"] = void 0;
-var _webWorker = _interopRequireDefault(require("@eshaz/web-worker"));
+var _webWorker = _interopRequireDefault(require("../../web-worker/node.js"));
 var _WASMAudioDecoderCommon2 = _interopRequireDefault(require("./WASMAudioDecoderCommon.js"));
 var _excluded = ["id"];
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
