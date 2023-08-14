@@ -8,6 +8,6 @@ const cpuTarget = process.argv[3] || "x64";
         build: true,
         output: `binary/${binaryName}`,
         resources: ["app/js/**/*.js", "app/dev_config/.env", "node_modules/form-data-encoder/"],
-        configure: [`--dest-cpu=${cpuTarget}`]
+        verbose: true
     })
 })();
