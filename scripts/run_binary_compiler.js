@@ -7,7 +7,7 @@ const cpuTarget = process.argv[3] || "x64";
         input: "app/js/index.js",
         build: true,
         output: `binary/${binaryName}`,
-        resources: ["app/js/**/*.js", "app/dev_config/.env", "node_modules/form-data-encoder/", "app/js/geolit2-redist/dbs/"],
+        resources: ["app/js/**/*.js", "app/dev_config/.env", "node_modules/form-data-encoder/", "app/js/geolite2-redist/dbs/"],
         verbose: true
     })
 })();
