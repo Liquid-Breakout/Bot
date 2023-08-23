@@ -10,6 +10,7 @@ import { Instance } from "./RobloxFileParser/Instance";
 import maxmind, { CountryResponse } from 'maxmind';
 import { publicIpv4 } from "./public-ip";
 import {GeoIpDbName, open} from "./geolite2-redist/dist/index"
+import { URL } from "node:url";
 
 // For your concern, this is used to check if we need to use a proxy server
 // (As Roblox block IP address that mismatch cookie's continent :( )
@@ -186,9 +187,14 @@ const ApiKeySchema = new mongoose.Schema({
     enabled: Boolean,
     timeCreated: Number,
 });
+const LeaderboardResetAnnounceSchema = new mongoose.Schema({
+    month: Number,
+    year: Number
+})
 
 // Models
 const ApiKeyModel = mongoose.model("apiKey", ApiKeySchema);
+const LeaderboardResetAnnounceModel = mongoose.model("leaderboardResetAnnounce", LeaderboardResetAnnounceSchema);
 
 function CreateOutput(Code: number, Message?: string | null, Data?: any) {
     return {"code": Code, "message": Message, data: Data};
@@ -200,6 +206,7 @@ class Backend {
     public SelectedServerType: string
     public IDConverter: IDConverterClass;
     public RobloxToken: string;
+    public RobloxApiKey: string;
     public RobloxAudioToken: string;
     public OutputCodes: {[index: string]: number} = {
         "OPERATION_SUCCESS": 0,
@@ -560,6 +567,39 @@ class Backend {
         );
     }
 
+    public async GetRobloxUserInfo(UserId: number) {
+        let UserInfo;
+        try {
+            UserInfo = (await axios({
+                url: `https://users.roblox.com/v1/users/${UserId}`,
+                method: "GET"
+            })).data;
+        } catch (AxiosResponse) {}
+        return UserInfo;
+    }
+
+    public GetRobloxNamePresenationByUserInfo(UserInfo: any) {
+        return UserInfo.name == UserInfo.displayName ? UserInfo.name : `${UserInfo.displayName} (@${UserInfo.name})`;
+    }
+
+    public async FetchRobloxDataStore(UniverseId: number, DataStoreName: string, Scope: string | undefined, KeyName: string) {
+        let Data;
+        let openCloudUrl = new URL(`https://apis.roblox.com/datastores/v1/universes/${UniverseId}/standard-datastores/datastore/entries/entry`);
+        openCloudUrl.searchParams.append("dataStoreName", DataStoreName);
+        openCloudUrl.searchParams.append("entryKey", KeyName);
+        openCloudUrl.searchParams.append("scope", Scope || "global");
+        try {
+            Data = (await axios({
+                url: openCloudUrl.toString(),
+                method: "GET",
+                headers: {
+                    "x-api-key": this.RobloxApiKey
+                }
+            })).data;
+        } catch (AxiosResponse: any) { }
+        return Data;
+    }
+
     public async Internal_GetPlaceFile(PlaceId: number, ExpressResponse: Response) {
         try {
             const AxiosResponse = await axiosWithProxy({
@@ -679,6 +719,27 @@ class Backend {
         return documents;
     }
 
+    public async HasAnnouncedLeaderboardReset() {
+        const currentDate = new Date();
+        const foundDocument = await LeaderboardResetAnnounceModel.findOne({
+            month: currentDate.getUTCMonth(),
+            year: currentDate.getUTCFullYear()
+        }).exec();
+        return foundDocument != null
+    }
+
+    public async SetAnnounceLeaderboardReset() {
+        if (await this.HasAnnouncedLeaderboardReset()) {
+            return;
+        }
+
+        const currentDate = new Date();
+        await new LeaderboardResetAnnounceModel({
+            month: currentDate.getUTCMonth(),
+            year: currentDate.getUTCFullYear()
+        }).save();
+    }
+
     public async GetSoundFrequenciesData(SoundId: number, Compress: boolean) {
         let [FetchSessionSuccess, SessionToken] = await this.GetSessionToken(this.RobloxToken);
 
@@ -782,9 +843,11 @@ class Backend {
         return frequencyOutput;
     }
 
-    constructor(SetRobloxToken?: string, SetRobloxAudioToken?: string, MongoDbUrl?: string, ServerType?: string) {
+    constructor(SetRobloxToken?: string, SetRobloxApiKey?: string, SetRobloxAudioToken?: string, MongoDbUrl?: string, ServerType?: string) {
         if (SetRobloxToken == undefined)
             throw new Error("Backend: No Roblox Token was supplied.")
+        if (SetRobloxApiKey == undefined)
+            throw new Error("Backend: No Roblox Open Cloud API key was supplied.")
         if (SetRobloxAudioToken == undefined)
             SetRobloxAudioToken = "";
         if (MongoDbUrl == undefined)
@@ -801,6 +864,7 @@ class Backend {
             "5432189076"
         )
         this.RobloxToken = SetRobloxToken;
+        this.RobloxApiKey = SetRobloxApiKey;
         this.RobloxAudioToken = SetRobloxAudioToken;
         mongoose.connect(MongoDbUrl);
         this.SelectedServerType = ServerType;

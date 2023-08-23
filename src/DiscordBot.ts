@@ -1,4 +1,4 @@
-import { ActivityType, ChatInputCommandInteraction, Client, Collection, Events, GatewayIntentBits, Interaction, Message, Partials, REST, Routes, User, WebhookClient } from "discord.js";
+import { ActivityType, Channel, ChatInputCommandInteraction, Client, Collection, EmbedBuilder, Events, GatewayIntentBits, Interaction, Message, Partials, REST, Routes, TextChannel, User, WebhookClient } from "discord.js";
 import Backend from "./Backend";
 import {Log} from "./Logger";
 import fs from "fs"
@@ -152,6 +152,61 @@ class DiscordBot {
         this.UpdatePresence("Pending");
 
         Log("DiscordBot: Login success, bot ready");
+
+        setInterval(async () => {
+            const hasAnnouncedLeaderboardReset: boolean = await this.Backend.HasAnnouncedLeaderboardReset();
+            if (!hasAnnouncedLeaderboardReset) {
+                const CurrentDate = new Date();
+                const LastMonth = CurrentDate.getUTCMonth() == 1 ? 12 : CurrentDate.getUTCMonth() - 1;
+                const LastYear = LastMonth == 12 ? CurrentDate.getUTCFullYear() - 1 : CurrentDate.getUTCFullYear();
+                const LeaderboardData = await this.Backend.FetchRobloxDataStore(325334351, `Leaderboards-${LastMonth}-${LastYear}`, undefined, "Data");
+                if (!LeaderboardData) {
+                    return;
+                }
+
+                LeaderboardData.sort((rankA: {UserId: string, XP: number}, rankB: {UserId: string, XP: number}) => {
+                    return rankB.XP - rankA.XP
+                });
+
+                const names = [];
+                for (let i = 0; i < 3; i++) {
+                    const userInfo = await this.Backend.GetRobloxUserInfo(LeaderboardData[i].UserId);
+                    if (!userInfo) {
+                        return;
+                    }
+
+                    const name = this.Backend.GetRobloxNamePresenationByUserInfo(userInfo);
+                    names.push(name);
+                }
+                if (names.length != 3) {
+                    return;
+                }
+
+                const announceEmbed = new EmbedBuilder()
+                    .setTitle("Liquid Breakout's Monthly Leaderboard has reset!")
+                    .setDescription("Congratulations to the top 3!!")
+                    .addFields(
+                        {
+                            name: "Rank #1",
+                            value: names[0],
+                        },
+                        {
+                            name: "Rank #2",
+                            value: names[1],
+                        },
+                        {
+                            name: "Rank #3",
+                            value: names[2],
+                        },
+                    )
+                    .setColor("#00b0f4");
+                const newsChannel: Channel | undefined = this.Client.channels.cache.get("1041031287475028099");
+                if (newsChannel) {
+                    await (newsChannel as TextChannel).send({embeds: [announceEmbed]});
+                    await this.Backend.SetAnnounceLeaderboardReset();
+                }
+            }
+        }, 60000);
     }
 
     constructor(Backend: any, Prefix: string, BotToken?: string, ClientId?: string) {

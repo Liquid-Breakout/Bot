@@ -17,6 +17,7 @@ if (fs.existsSync(path.join(__dirname, '../dev_config/.env'))) {
 }
 
 const RobloxToken: string | undefined = process.env["LBCookie"];
+const RobloxApiKey: string | undefined = process.env["LBRobloxApiKey"];
 const RobloxAudioToken: string | undefined = process.env["AudioCookie"];
 const BotToken: string | undefined = process.env["BotToken"];
 const BotClientId: string | undefined = process.env["BotClientId"];
@@ -29,7 +30,7 @@ const WorkerIdentifer: string = process.env["WorkerIdentifer"] || `${process.pla
 
 SetWorkerStatus(!IsBalancer);
 Log(`Launch parameter: Development: ${IsDevelopment}, Balancer: ${IsBalancer}`);
-const AppBackend = new Backend(RobloxToken, RobloxAudioToken, MongoDBUri, ServerType);
+const AppBackend = new Backend(RobloxToken, RobloxApiKey, RobloxAudioToken, MongoDBUri, ServerType);
 const WorkerProcessor = IsBalancer ? new Balancer(BalancerUrl) : new Worker(WorkerIdentifer, BalancerUrl);
 WorkerProcessor.connect();
 
