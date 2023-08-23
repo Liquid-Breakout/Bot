@@ -1,6 +1,6 @@
 import { ActivityType, Channel, ChatInputCommandInteraction, Client, Collection, EmbedBuilder, Events, GatewayIntentBits, Interaction, Message, Partials, REST, Routes, TextChannel, User, WebhookClient } from "discord.js";
 import Backend from "./Backend";
-import {Log} from "./Logger";
+import {Log, Warn} from "./Logger";
 import fs from "fs"
 import path from "path"
 import axios from "axios"
@@ -159,7 +159,17 @@ class DiscordBot {
                 const CurrentDate = new Date();
                 const LastMonth = CurrentDate.getUTCMonth() == 1 ? 12 : CurrentDate.getUTCMonth() - 1;
                 const LastYear = LastMonth == 12 ? CurrentDate.getUTCFullYear() - 1 : CurrentDate.getUTCFullYear();
-                const LeaderboardData = await this.Backend.FetchRobloxDataStore(325334351, `Leaderboards-${LastMonth}-${LastYear}`, undefined, "Data");
+
+                const MonthName = (() => {
+                    const date = new Date();
+                    date.setMonth(LastMonth);
+                  
+                    return date.toLocaleString([], {
+                        month: 'long',
+                    });
+                })();
+
+                const LeaderboardData = await this.Backend.FetchRobloxDataStore(325334351, `Leaderboards-${MonthName}-${LastYear}`, undefined, "Data");
                 if (!LeaderboardData) {
                     return;
                 }
@@ -183,8 +193,8 @@ class DiscordBot {
                 }
 
                 const announceEmbed = new EmbedBuilder()
-                    .setTitle("Liquid Breakout's Monthly Leaderboard has reset!")
-                    .setDescription("Congratulations to the top 3!!")
+                    .setTitle(`Liquid Breakout's ${MonthName} Leaderboard has ended!`)
+                    .setDescription("Congratulations to the top 3!\nThe monthly leaderboard has now reset, and you all may compete for the 3 places... again...")
                     .addFields(
                         {
                             name: "Rank #1",
@@ -206,7 +216,7 @@ class DiscordBot {
                     await this.Backend.SetAnnounceLeaderboardReset();
                 }
             }
-        }, 60000);
+        }, 5000);
     }
 
     constructor(Backend: any, Prefix: string, BotToken?: string, ClientId?: string) {
