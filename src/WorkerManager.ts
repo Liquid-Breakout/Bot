@@ -134,7 +134,7 @@ class Balancer extends WorkerBase {
             Log("WorkerManager: Begin workers health check");
             this.sendMessage({type: "healthCheck"});
             const timeframeStart: number = (new Date()).getTime();
-            await sleepUntil(() => false, 5000); // 5 seconds timeframe
+            await sleepUntil(() => false, 15000); // 15 seconds timeframe
             const timeframeEnd: number = (new Date()).getTime();
 
             Object.keys(this._registeredWorkers).forEach((workerId: string) => {
@@ -157,7 +157,7 @@ class Balancer extends WorkerBase {
             if (Object.keys(this._registeredWorkers).length == 0) {
                 this.WorkerAvaliable = false;
             }
-        }, 10000); // Every 10 seconds
+        }, 30000); // Every 15 seconds technically
     }
 
     public override bind(url: string, processFunc: any, mustBeBalancer?: boolean, processPower?: number) {
@@ -255,7 +255,7 @@ class Balancer extends WorkerBase {
                     if (results) {
                         Response.status(results.statusCode).send(results.data);
                     } else {
-                        this._jobsData[url].workersFailed.push(selectedWorker);
+                        //this._jobsData[url].workersFailed.push(selectedWorker);
                         Response.status(500).send("Worker failed to complete job.");
                     }
                     delete this._jobsData[url].results[newJobId];
