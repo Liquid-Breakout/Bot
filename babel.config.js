@@ -5,7 +5,9 @@ module.exports = function (api) {
         [
           "@babel/preset-env",
             {
-                modules: "commonjs"
+              targets: { node: '16.11' },
+              shippedProposals: true,
+              modules: 'commonjs'
             }
         ], 
         "@babel/preset-typescript"
