@@ -808,8 +808,9 @@ class Backend {
             const FFT_SIZE: number = 512;
                 
             let decodedData = await decodeAudio(audioBuffer);
-            let channelData: Float32Array = decodedData.getChannelData(0);
-            let bufferStep = Math.floor(channelData.length / FFT_SIZE); // floor just in case
+            let channelDataLeft: Float32Array = decodedData.getChannelData(0);
+            let channelDataRight: Float32Array = decodedData.numberOfChannels == 2 ? decodedData.getChannelData(1) : channelDataLeft;
+            let bufferStep = Math.floor(channelDataLeft.length / FFT_SIZE); // floor just in case
             let currentTime = 0;
 
             const timeDelay = 1 / 15;
@@ -821,12 +822,14 @@ class Backend {
                     continue;
                 currentDelay = currentTime + timeDelay;
 
-                let currentBufferData = channelData.slice(i * FFT_SIZE, (i + 1) * FFT_SIZE);
+                let currentBufferData = channelDataLeft.slice(i * FFT_SIZE, (i + 1) * FFT_SIZE);
+                let rightChannelBufferData = channelDataRight.slice(i * FFT_SIZE, (i + 1) * FFT_SIZE);
                 let spectrum: Float32Array = Meyda.extract('amplitudeSpectrum', currentBufferData) as any;
                 for (let j = 0; j < spectrum.length; j++) {
-                    spectrum[j] /= 100; // Matches un4seen BASS (osu!lazer)
+                    spectrum[j] /= 160; // Matches un4seen BASS (osu!lazer)
                 }
-                frequencyOutput.push([currentTime, 0, 0, [Array.from(spectrum), spectrum.length]]);
+                
+                frequencyOutput.push([currentTime, Meyda.extract("rms", currentBufferData) as any, Meyda.extract("rms", rightChannelBufferData) as any, [Array.from(spectrum), spectrum.length]]);
             }
         } else {
             try {
