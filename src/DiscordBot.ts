@@ -212,7 +212,7 @@ class DiscordBot {
                     .setColor("#00b0f4");
                 const newsChannel: Channel | undefined = this.Client.channels.cache.get("1041031287475028099");
                 if (newsChannel) {
-                    await (newsChannel as TextChannel).send({embeds: [announceEmbed]});
+                    await (newsChannel as TextChannel).send({content: "<@&1070633748686704653>", embeds: [announceEmbed]});
                     await this.Backend.SetAnnounceLeaderboardReset();
                 }
             }
