@@ -131,7 +131,7 @@ class Balancer extends WorkerBase {
 
         // Send health check to all workers
         setInterval(async () => {
-            Log("WorkerManager: Begin workers health check");
+            //Log("WorkerManager: Begin workers health check");
             this.sendMessage({type: "healthCheck"});
             const timeframeStart: number = (new Date()).getTime();
             await sleepUntil(() => false, 15000); // 15 seconds timeframe
@@ -374,7 +374,7 @@ class Worker extends WorkerBase {
                     this.sendMessage({type: "workerReady", url: receivedData.url});
                 }
             } else if (receivedData.type == "healthCheck") {
-                Log(`WorkerManager: Responding to Balancer's health check`);
+                //Log(`WorkerManager: Responding to Balancer's health check`);
                 this.sendMessage({type: "workerHealth"});
             } else if (receivedData.type == "disconnected") {
                 Log(`WorkerManager: Disconnected, reconnecting to Balancer`);
