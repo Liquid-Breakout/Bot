@@ -101,15 +101,6 @@
     "skipLibCheck": true                                 /* Skip type checking all .d.ts files. */
   },
   "include": [
-    "src/BotCommands"
-  ],
-  "files": [
-    "src/index.ts",
-    "src/Backend.ts",
-    "src/ServerFrontend.ts",
-    "src/DiscordBot.ts",
-    "src/audioDecoder/index.js",
-    "src/audioDecoder/audioType.js",
-    "src/audioDecoder/audioBuffer.js"
+    "src"
   ]
 }

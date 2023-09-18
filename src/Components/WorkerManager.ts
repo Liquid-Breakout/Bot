@@ -2,9 +2,9 @@ import sockjsServer from "sockjs"
 import sockjsClient from "sockjs-client"
 import { Guid } from "guid-typescript"
 import express, {Express, Request, Response} from "express"
-import { Log, Warn } from "./Logger";
+import { Log, Warn } from "../Utilities/Logger";
 import { createServer } from "http"
-import { recursiveBenchmark, operationsBenchmark } from "./CpuBenchmark"
+import { recursiveBenchmark, operationsBenchmark } from "../Utilities/CpuBenchmark"
 
 // Type guards
 function isSocketClient(socket: any): socket is WebSocket {

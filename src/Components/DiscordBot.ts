@@ -1,6 +1,6 @@
 import { ActivityType, Channel, ChatInputCommandInteraction, Client, Collection, EmbedBuilder, Events, GatewayIntentBits, Interaction, Message, Partials, REST, Routes, TextChannel, User, WebhookClient } from "discord.js";
 import Backend from "./Backend";
-import {Log, Warn} from "./Logger";
+import { Log } from "../Utilities/Logger";
 import fs from "fs"
 import path from "path"
 import axios from "axios"

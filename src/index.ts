@@ -3,11 +3,11 @@ import path from "path";
 import dotenv from "dotenv";
 import { Guid } from "guid-typescript"
 
-import Backend from "./Backend";
-import ServerFrontend from "./ServerFrontend";
-import {DiscordBot} from "./DiscordBot";
-import {Balancer, Worker} from "./WorkerManager";
-import {Log, SetWorkerStatus} from "./Logger";
+import Backend from "./Components/Backend";
+import ServerFrontend from "./Components/ServerFrontend";
+import {DiscordBot} from "./Components/DiscordBot";
+import {Balancer, Worker} from "./Components/WorkerManager";
+import {Log, SetWorkerStatus} from "./Utilities/Logger";
 
 // Test only
 import cluster from "cluster";

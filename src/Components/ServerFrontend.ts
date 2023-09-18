@@ -1,7 +1,7 @@
 import Backend from "./Backend";
 import { DiscordBot } from "./DiscordBot";
 import { Balancer, Worker } from "./WorkerManager"
-import {Log} from "./Logger";
+import {Log} from "../Utilities/Logger";
 
 class ServerFrontend {
     private _backend: Backend;

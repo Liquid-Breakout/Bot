@@ -1,15 +1,15 @@
 import axios from "axios";
 import { Response } from "express";
 import mongoose from "mongoose";
-import decodeAudio from "./audioDecoder/index"
+import decodeAudio from "../Utilities/AudioDecoder"
 import Meyda from "meyda";
 import zlib from "node:zlib"
-import { Log, Warn } from "./Logger";
-import FileParser from "./RobloxFileParser/FileParser"
-import { Instance } from "./RobloxFileParser/Instance";
+import { Log } from "../Utilities/Logger";
+import FileParser from "../Utilities/RobloxFileParser/FileParser"
+import { Instance } from "../Utilities/RobloxFileParser/Instance";
 import maxmind, { CountryResponse } from 'maxmind';
-import { publicIpv4 } from "./public-ip";
-import {GeoIpDbName, open} from "./geolite2-redist/dist/index"
+import { publicIpv4 } from "../CompatibilityModules/public-ip";
+import {GeoIpDbName, open} from "../CompatibilityModules/geolite2-redist/dist"
 import { URL } from "node:url";
 
 // For your concern, this is used to check if we need to use a proxy server
