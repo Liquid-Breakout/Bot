@@ -1,0 +1,32 @@
+on:
+  schedule:
+    - cron:  '0 0 * * *'
+
+jobs:
+  renew_cache:
+    strategy:
+      matrix:
+        include:
+          - name: Windows x86_64
+            arch: x86_64
+            runner-os: windows-latest
+
+          - name: Linux x86_64
+            arch: x86_64
+            runner-os: ubuntu-latest
+
+          - name: Linux aarch64
+            arch: aarch64
+            runner-os: self-hosted
+
+    name: Reload cache - ${{ matrix.name }} ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner-os }}
+    steps:
+      - uses: actions/cache@v3
+        env:
+          cache-name: cache-nexe-compile-output
+        with:
+          path: ~/.nexe
+          key: ${{ runner.os }}-${{ matrix.arch }}-nodejsnexe-${{ env.cache-name }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.arch }}-nodejsnexe-
