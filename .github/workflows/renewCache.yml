@@ -22,7 +22,7 @@ jobs:
             arch: aarch64
             runner-os: self-hosted
 
-    name: Reload cache - ${{ matrix.name }} ${{ matrix.arch }}
+    name: Reload cache - ${{ matrix.name }}
     runs-on: ${{ matrix.runner-os }}
     steps:
       - uses: actions/cache@v3
