@@ -3,7 +3,7 @@ name: Renew Caches
 on:
   workflow_dispatch:
   schedule:
-    - cron:  '0 0 * * *'
+    - cron:  '0 0 * * 1,3,5'
 
 jobs:
   renew_cache:
