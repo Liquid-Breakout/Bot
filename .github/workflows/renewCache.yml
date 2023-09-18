@@ -1,3 +1,5 @@
+name: Renew Caches
+
 on:
   schedule:
     - cron:  '0 0 * * *'
