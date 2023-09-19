@@ -12,6 +12,7 @@ import {Log, SetWorkerStatus} from "./Utilities/Logger";
 // Test only
 import cluster from "cluster";
 
+__dirname = path.dirname(module.filename || process.execPath); // nexe moment
 if (fs.existsSync(path.join(__dirname, '../dev_config/.env'))) {
 	dotenv.config({ path: path.join(__dirname, "../dev_config/.env") });
 }
