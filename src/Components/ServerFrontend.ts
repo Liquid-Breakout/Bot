@@ -222,7 +222,7 @@ class ServerFrontend {
 				return;
             }
 
-            await this._backend.BanPlayer(UserId, BanDuration, Moderator, BanReason);
+            await this._backend.BanPlayer("API", UserId, BanDuration, Moderator, BanReason);
             Response.send("Banned");
         }, false);
         

@@ -36,7 +36,7 @@ module.exports = {
         }
         const playerName = Bot.Backend.GetRobloxNamePresenationByUserInfo(playerInfo);
 
-        await Bot.Backend.BanPlayer(userId, banDuration, newLayer.author ? `@${newLayer.author.tag} (Discord)` : "unknown (Discord)", banReason);
+        await Bot.Backend.BanPlayer("Discord", userId, banDuration, newLayer.author ? `@${newLayer.author.tag}` : "unknown", banReason);
         
         const currentDate = new Date();
         const currentTime = Math.floor(currentDate.getTime() / 1000);
