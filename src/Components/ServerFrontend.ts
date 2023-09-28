@@ -162,6 +162,83 @@ class ServerFrontend {
 
             Response.send(await this._backend.GetSoundFrequenciesData(AudioId, Compress));
         }, false, 20);
+
+        this._worker.bind('/player/isbanned', async (Request: any, Response: any) => {
+            const RequestQuery = Request.query;
+            let UserId: number = RequestQuery.userId ? parseInt(RequestQuery.userId.toString()) : NaN;
+            if (isNaN(UserId)) {
+                Response.status(400).send("Invalid userId param.")
+				return;
+			}
+
+            Response.send(await this._backend.IsPlayerBanned(UserId));
+        }, false);
+
+        this._worker.bind('/player/getbandata', async (Request: any, Response: any) => {
+            const RequestQuery = Request.query;
+            let UserId: number = RequestQuery.userId ? parseInt(RequestQuery.userId.toString()) : NaN;
+            if (isNaN(UserId)) {
+                Response.status(400).send("Invalid userId param.")
+				return;
+			}
+
+            Response.send(await this._backend.GetPlayerBannedData(UserId) || null);
+        }, false);
+
+        this._worker.bind('/player/ban', async (Request: any, Response: any) => {
+            const RequestQuery = Request.query;
+            let UserId: number = RequestQuery.userId ? parseInt(RequestQuery.userId.toString()) : NaN;
+            let BanDuration: number = RequestQuery.duration ? parseInt(RequestQuery.duration.toString()) : NaN;
+            let BanReason: string = RequestQuery.reason ? RequestQuery.reason.toString() : "NULL";
+            let Moderator: string = RequestQuery.moderator ? RequestQuery.moderator.toString() : "NULL";
+            let ApiKey: string = RequestQuery.apiKey ? RequestQuery.apiKey.toString() : "NULL";
+
+            if (isNaN(UserId)) {
+                Response.status(400).send("Invalid userId param.")
+				return;
+			}
+            if (isNaN(BanDuration)) {
+                Response.status(400).send("Invalid duration param.")
+				return;
+			}
+            if (BanDuration != -1 && BanDuration < 0) {
+                Response.status(400).send("duration param cannot be negative (unless if it's -1, which will ban indefinitely).")
+				return;
+            }
+            if (BanReason == "NULL") {
+                Response.status(400).send("Invalid reason param.")
+				return;
+			}
+            if (Moderator == "NULL") {
+                Response.status(400).send("Invalid moderator param.")
+				return;
+			}
+            if (ApiKey == "NULL" || !(await this._backend.IsValidApiKey(ApiKey))) {
+				Response.status(400).send("Invalid apiKey param or API key has been invalidated.")
+				return;
+            }
+
+            await this._backend.BanPlayer(UserId, BanDuration, Moderator, BanReason);
+            Response.send("Banned");
+        }, false);
+        
+        this._worker.bind('/player/unban', async (Request: any, Response: any) => {
+            const RequestQuery = Request.query;
+            let UserId: number = RequestQuery.userId ? parseInt(RequestQuery.userId.toString()) : NaN;
+            let ApiKey: string = RequestQuery.apiKey ? RequestQuery.apiKey.toString() : "NULL";
+
+            if (isNaN(UserId)) {
+                Response.status(400).send("Invalid userId param.")
+				return;
+			}
+            if (ApiKey == "NULL" || !(await this._backend.IsValidApiKey(ApiKey))) {
+				Response.status(400).send("Invalid apiKey param or API key has been invalidated.")
+				return;
+            }
+
+            await this._backend.UnbanPlayer(UserId);
+            Response.send("Unbanned");
+        }, false);
     }
 }
 
