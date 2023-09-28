@@ -17,8 +17,10 @@ module.exports = {
         if (!userId)
             return newLayer.reply("User ID must be a number.");
 
+        // 2 database requests.........
+        const isBanned = await Bot.Backend.IsPlayerBanned(userId);
         const banData = await Bot.Backend.GetPlayerBannedData(userId);
-        if (banData == null) {
+        if (banData == null || !isBanned) {
             return newLayer.reply(`${userId} is not banned.`);
         }
         const playerInfo = await Bot.Backend.GetRobloxUserInfo(banData.userId!);
