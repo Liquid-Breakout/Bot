@@ -40,7 +40,7 @@ module.exports = {
                 },
                 {
                     name: "Banned Until",
-                    value: banData.bannedUntil != -1 ? `<t:${banData.bannedUntil!}:F>` : "Indefintely",
+                    value: banData.bannedUntil != -1 ? `<t:${Math.floor(banData.bannedUntil! / 1000)}:F>` : "Indefintely",
                 },
                 {
                     name: "Reason",
