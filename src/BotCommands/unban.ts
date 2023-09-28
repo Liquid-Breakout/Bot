@@ -26,7 +26,7 @@ module.exports = {
         if (!playerInfo) {
             return newLayer.reply(`${userId} is not a Roblox User ID.`);
         }
-        const playerName = this.Backend.GetRobloxNamePresenationByUserInfo(playerInfo);
+        const playerName = Bot.Backend.GetRobloxNamePresenationByUserInfo(playerInfo);
 
         await Bot.Backend.UnbanPlayer(userId);
 
