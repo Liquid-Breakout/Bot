@@ -4,7 +4,7 @@ import { DiscordBot, DiscordBotCompatibilityLayer } from "../Components/DiscordB
 module.exports = {
 	slashData: new SlashCommandBuilder()
 		.setName("banstatus")
-		.setDescription("Get a ban's status of a player.")
+		.setDescription("Get ban status of a player.")
         .addIntegerOption((option: SlashCommandIntegerOption) => option.setName("user_id").setDescription("User ID of a player.").setRequired(true)),
 	async execute(Bot: DiscordBot, Interaction: ChatInputCommandInteraction<any> | Message<boolean>, Arguments: any[]) {
 		const newLayer = new DiscordBotCompatibilityLayer(Interaction, true);
