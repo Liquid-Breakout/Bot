@@ -1,5 +1,5 @@
 import { ChatInputCommandInteraction, Message, SlashCommandBuilder, SlashCommandIntegerOption } from "discord.js";
-import { DiscordBot, DiscordBotCompatibilityLayer } from "../DiscordBot"
+import { DiscordBot, DiscordBotCompatibilityLayer } from "../Components/DiscordBot"
 
 module.exports = {
 	slashData: new SlashCommandBuilder()

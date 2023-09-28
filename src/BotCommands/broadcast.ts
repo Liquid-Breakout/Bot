@@ -1,5 +1,5 @@
 import { ChatInputCommandInteraction, Message, Channel, TextChannel } from "discord.js";
-import { DiscordBot, DiscordBotCompatibilityLayer } from "../DiscordBot"
+import { DiscordBot, DiscordBotCompatibilityLayer } from "../Components/DiscordBot"
 
 module.exports = {
     requires: ["PRIVILEGE"],

@@ -1,5 +1,5 @@
 import { ChatInputCommandInteraction, Message } from "discord.js";
-import { DiscordBot, DiscordBotCompatibilityLayer } from "../DiscordBot"
+import { DiscordBot, DiscordBotCompatibilityLayer } from "../Components/DiscordBot"
 
 module.exports = {
 	async execute(Bot: DiscordBot, Interaction: ChatInputCommandInteraction<any> | Message<boolean>, Arguments: any[]) {
