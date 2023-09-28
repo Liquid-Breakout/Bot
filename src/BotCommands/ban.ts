@@ -37,7 +37,9 @@ module.exports = {
         const playerName = Bot.Backend.GetRobloxNamePresenationByUserInfo(playerInfo);
 
         await Bot.Backend.BanPlayer(userId, banDuration, newLayer.author ? `@${newLayer.author.tag} (Discord)` : "unknown (Discord)", banReason);
-
-        newLayer.reply(`${playerName} (${userId}) has been banned until ${banDuration != -1 ? `<t:${banDuration}:F>` : "indefinitely."}`);
+        
+        const currentDate = new Date();
+        const currentTime = Math.floor(currentDate.getTime() / 1000);
+        newLayer.reply(`${playerName} (${userId}) has been banned until ${banDuration != -1 ? `<t:${currentTime + banDuration * 60}:F>` : "indefinitely."}`);
 	},
 };
