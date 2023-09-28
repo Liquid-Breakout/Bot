@@ -766,10 +766,9 @@ class Backend {
     }
 
     public async UnbanPlayer(UserId: number) {
-        let document = await this.GetPlayerBannedData(UserId);
-        if (document) {
-            (await document.deleteOne()).save();
-        }
+        await BannedPlayerModel.deleteOne({
+            userId: UserId
+        });
     }
 
     public async HasAnnouncedLeaderboardReset() {
