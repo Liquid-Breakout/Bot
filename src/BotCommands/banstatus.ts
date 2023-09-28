@@ -25,11 +25,15 @@ module.exports = {
         if (!playerInfo) {
             return newLayer.reply(`${userId} is not a Roblox User ID.`);
         }
-        const playerName = this.Backend.GetRobloxNamePresenationByUserInfo(playerInfo);
+        const playerName = Bot.Backend.GetRobloxNamePresenationByUserInfo(playerInfo);
 
         const embed = new EmbedBuilder()
             .setTitle(`${playerName}'s ban info`)
             .addFields(
+                {
+                    name: "Banned by",
+                    value: `${banData.moderator || "unknown"}`,
+                },
                 {
                     name: "Banned Time",
                     value: `<t:${banData.bannedTime!}:F>`,

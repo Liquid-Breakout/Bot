@@ -747,7 +747,7 @@ class Backend {
         return banned;
     }
 
-    public async BanPlayer(UserId: number, DurationInMinutes: number, Reason: string) {
+    public async BanPlayer(UserId: number, DurationInMinutes: number, ModeratorName: string, Reason: string) {
         let document = await this.GetPlayerBannedData(UserId);
         if (!document) {
             document = await new BannedPlayerModel({
@@ -760,7 +760,8 @@ class Backend {
         document.updateOne({
             bannedTime: currentTime,
             bannedUntil: bannedUntil,
-            reason: Reason
+            reason: Reason,
+            moderator: ModeratorName
         }).exec();
     }
 
