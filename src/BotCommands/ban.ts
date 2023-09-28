@@ -6,15 +6,15 @@ module.exports = {
 	slashData: new SlashCommandBuilder()
 		.setName("ban")
 		.setDescription("Ban a player.")
-        .addIntegerOption((option: SlashCommandIntegerOption) => option.setName("userId").setDescription("User ID of a player.").setRequired(true))
-        .addIntegerOption((option: SlashCommandIntegerOption) => option.setName("banDuration").setDescription("Ban duration (in minutes). Set to -1 will ban for indefinitely.").setRequired(true))
+        .addIntegerOption((option: SlashCommandIntegerOption) => option.setName("user_id").setDescription("User ID of a player.").setRequired(true))
+        .addIntegerOption((option: SlashCommandIntegerOption) => option.setName("ban_duration").setDescription("Ban duration (in minutes). Set to -1 will ban for indefinitely.").setRequired(true))
         .addStringOption((option: SlashCommandStringOption) => option.setName("reason").setDescription("Ban reason").setRequired(true)),
 	async execute(Bot: DiscordBot, Interaction: ChatInputCommandInteraction<any> | Message<boolean>, Arguments: any[]) {
 		const newLayer = new DiscordBotCompatibilityLayer(Interaction, true);
         await newLayer.init(false);
         if (Interaction instanceof ChatInputCommandInteraction)
             if (Arguments.length == 0)
-                Arguments = [Interaction.options.getInteger("userId"), Interaction.options.getInteger("banDuration"), Interaction.options.getString("reason")]
+                Arguments = [Interaction.options.getInteger("user_id"), Interaction.options.getInteger("ban_duration"), Interaction.options.getString("reason")]
 
         const userId: number | undefined = Arguments[0] ? parseInt(Arguments[0]) : undefined;
         if (!userId)

@@ -6,13 +6,13 @@ module.exports = {
 	slashData: new SlashCommandBuilder()
 		.setName("unban")
 		.setDescription("Unban a player.")
-        .addIntegerOption((option: SlashCommandIntegerOption) => option.setName("userId").setDescription("User ID of a player.").setRequired(true)),
+        .addIntegerOption((option: SlashCommandIntegerOption) => option.setName("user_id").setDescription("User ID of a player.").setRequired(true)),
 	async execute(Bot: DiscordBot, Interaction: ChatInputCommandInteraction<any> | Message<boolean>, Arguments: any[]) {
 		const newLayer = new DiscordBotCompatibilityLayer(Interaction, true);
         await newLayer.init(false);
         if (Interaction instanceof ChatInputCommandInteraction)
             if (Arguments.length == 0)
-                Arguments = [Interaction.options.getInteger("userId")]
+                Arguments = [Interaction.options.getInteger("user_id")]
 
         const userId: number | undefined = Arguments[0] ? parseInt(Arguments[0]) : undefined;
         if (!userId)
