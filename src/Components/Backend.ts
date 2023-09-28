@@ -755,7 +755,7 @@ class Backend {
             }).save();
         }
         const currentDate = new Date();
-        const currentTime = currentDate.getTime();
+        const currentTime = Math.floor(currentDate.getTime() / 1000);
         const bannedUntil = DurationInMinutes != -1 ? currentTime + (DurationInMinutes * 60) : -1;
         document.updateOne({
             bannedTime: currentTime,
