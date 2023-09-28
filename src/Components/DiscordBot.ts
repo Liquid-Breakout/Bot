@@ -247,7 +247,7 @@ class DiscordBot {
         // Load the commands
         this._commands = new Collection();
         this._commandsData = [];
-        const commandsPath = path.join(__dirname, 'BotCommands');
+        const commandsPath = path.join(__dirname, "..", "BotCommands");
         const commandFiles = fs.readdirSync(commandsPath).filter(file => (file.endsWith('.js') || file.endsWith('.ts')) && !file.endsWith('.d.ts'));
 
         for (const file of commandFiles) {
