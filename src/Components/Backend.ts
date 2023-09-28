@@ -740,7 +740,7 @@ class Backend {
         const document = await this.GetPlayerBannedData(UserId);
         if (document && document.bannedUntil) {
             const currentDate = new Date();
-            if (document.bannedUntil == -1 || currentDate.getTime() < document.bannedUntil) {
+            if (document.bannedUntil == -1 || (currentDate.getTime() / 1000) < document.bannedUntil) {
                 banned = true;
             }
         }
