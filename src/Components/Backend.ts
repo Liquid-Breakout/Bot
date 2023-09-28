@@ -771,6 +771,10 @@ class Backend {
         });
     }
 
+    public async GetBanList() {
+        return await BannedPlayerModel.find();
+    }
+
     public async HasAnnouncedLeaderboardReset() {
         const currentDate = new Date();
         const foundDocument = await LeaderboardResetAnnounceModel.findOne({

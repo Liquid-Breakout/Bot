@@ -185,6 +185,10 @@ class ServerFrontend {
             Response.send(await this._backend.GetPlayerBannedData(UserId) || null);
         }, false);
 
+        this._worker.bind('/player/getbanlist', async (Request: any, Response: any) => {
+            Response.send(await this._backend.GetBanList() || []);
+        }, false);
+
         this._worker.bind('/player/ban', async (Request: any, Response: any) => {
             const RequestQuery = Request.query;
             let UserId: number = RequestQuery.userId ? parseInt(RequestQuery.userId.toString()) : NaN;
