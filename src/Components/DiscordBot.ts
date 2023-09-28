@@ -277,6 +277,7 @@ class DiscordBotCompatibilityLayer {
     private _defer: boolean;
 
     public author?: User;
+    public guild?: any;
 
     public async send() {
         return;
@@ -311,10 +312,14 @@ class DiscordBotCompatibilityLayer {
         this._object = InteractionObject;
         this._defer = doDefer;
 
-        if (this._object instanceof Message)
+        if (this._object instanceof Message) {
             this.author = this._object.author;
-        else if (this._object instanceof ChatInputCommandInteraction)
+            this.guild = this._object.guild;
+        }
+        else if (this._object instanceof ChatInputCommandInteraction) {
             this.author = this._object.user;
+            this.guild = this._object.guild;
+        }
     }
 }
 
