@@ -11,6 +11,7 @@ import maxmind, { CountryResponse } from 'maxmind';
 import { publicIpv4 } from "../CompatibilityModules/public-ip";
 import {GeoIpDbName, open} from "../CompatibilityModules/geolite2-redist/dist"
 import { URL } from "node:url";
+import { captureRejectionSymbol } from "node:events";
 
 // For your concern, this is used to check if we need to use a proxy server
 // (As Roblox block IP address that mismatch cookie's continent :( )
@@ -190,11 +191,19 @@ const ApiKeySchema = new mongoose.Schema({
 const LeaderboardResetAnnounceSchema = new mongoose.Schema({
     month: Number,
     year: Number
-})
+});
+const BannedPlayerSchema = new mongoose.Schema({
+    userId: Number,
+    bannedTime: Number,
+    bannedUntil: Number,
+    reason: String,
+    moderator: String
+});
 
 // Models
 const ApiKeyModel = mongoose.model("apiKey", ApiKeySchema);
 const LeaderboardResetAnnounceModel = mongoose.model("leaderboardResetAnnounce", LeaderboardResetAnnounceSchema);
+const BannedPlayerModel = mongoose.model("bannedPlayer", BannedPlayerSchema);
 
 function CreateOutput(Code: number, Message?: string | null, Data?: any) {
     return {"code": Code, "message": Message, data: Data};
@@ -715,8 +724,51 @@ class Backend {
         const documents = await ApiKeyModel.find({$or: [
             { assignOwner: User },
             { associatedDiscordUser: User }
-        ]});
+        ]}).exec();
         return documents;
+    }
+
+    public async GetPlayerBannedData(UserId: number) {
+        const document = await BannedPlayerModel.findOne({
+            userId: UserId
+        });
+        return document;
+    }
+
+    public async IsPlayerBanned(UserId: number): Promise<boolean> {
+        let banned = false;
+        const document = await this.GetPlayerBannedData(UserId);
+        if (document && document.bannedUntil) {
+            const currentDate = new Date();
+            if (document.bannedUntil == -1 || currentDate.getTime() < document.bannedUntil) {
+                banned = true;
+            }
+        }
+        return banned;
+    }
+
+    public async BanPlayer(UserId: number, DurationInMinutes: number, Reason: string) {
+        let document = await this.GetPlayerBannedData(UserId);
+        if (!document) {
+            document = await new BannedPlayerModel({
+                userId: UserId
+            }).save();
+        }
+        const currentDate = new Date();
+        const currentTime = currentDate.getTime();
+        const bannedUntil = DurationInMinutes != -1 ? currentTime + (DurationInMinutes * 60) : -1;
+        document.updateOne({
+            bannedTime: currentTime,
+            bannedUntil: bannedUntil,
+            reason: Reason
+        }).exec();
+    }
+
+    public async UnbanPlayer(UserId: number) {
+        let document = await this.GetPlayerBannedData(UserId);
+        if (document) {
+            (await document.deleteOne()).save();
+        }
     }
 
     public async HasAnnouncedLeaderboardReset() {
