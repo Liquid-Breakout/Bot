@@ -37,9 +37,10 @@ module.exports = {
         const playerName = Bot.Backend.GetRobloxNamePresenationByUserInfo(playerInfo);
 
         await Bot.Backend.BanPlayer("Discord", userId, banDuration, newLayer.author ? `@${newLayer.author.tag}` : "unknown", banReason);
-        
+        let erasedFromLeaderboardState = await Bot.Backend.RemovePlayerFromLeaderboard(userId);
+
         const currentDate = new Date();
         const currentTime = Math.floor(currentDate.getTime() / 1000);
-        newLayer.reply(`${playerName} (${userId}) has been banned until ${banDuration != -1 ? `<t:${currentTime + banDuration * 60}:F>` : "indefinitely."}`);
+        newLayer.reply(`${playerName} (${userId}) has been banned until ${banDuration != -1 ? `<t:${currentTime + banDuration * 60}:F>` : "indefinitely."}, ${erasedFromLeaderboardState ? "and has been successfully wiped from the leaderboards" : "however they cannot be wiped from the leaderboards (due to an error?)"}`);
 	},
 };
