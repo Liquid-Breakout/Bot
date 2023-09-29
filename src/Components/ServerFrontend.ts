@@ -223,6 +223,7 @@ class ServerFrontend {
             }
 
             await this._backend.BanPlayer("API", UserId, BanDuration, Moderator, BanReason);
+            await this._backend.RemovePlayerFromLeaderboard(UserId);
             Response.send("Banned");
         }, false);
         
