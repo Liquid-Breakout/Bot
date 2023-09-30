@@ -162,7 +162,7 @@ class ResponseDefiner {
     public httpResponseCode: number = HTTP_CODES.OK;
     public responseMessage: string | undefined = undefined
     public error: string | undefined = undefined;
-    public data: {[name: string]: any} = {};
+    public data: {[name: string]: any} | undefined = undefined;
 
     // Setters
     public code(code: number) {
@@ -178,6 +178,9 @@ class ResponseDefiner {
         return this;
     }
     public addData(dataName: string, dataValue: any) {
+        if (!this.data) {
+            this.data = {};
+        }
         this.data[dataName] = dataValue;
         return this;
     }
