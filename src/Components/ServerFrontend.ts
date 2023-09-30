@@ -74,7 +74,6 @@ class RequestDefiner {
     }
 
     private async _handler(Request: any, Response: any) {
-        Log("start async");
         if (!this._handlerFunction) {
             return;
         }
