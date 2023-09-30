@@ -1,250 +1,276 @@
-import Backend from "./Backend";
-import { DiscordBot } from "./DiscordBot";
+// Handle the requests inputs.
+// The Frontend ensures all arguments are correct before passing the processing to the Backend.
+
 import { Balancer, Worker } from "./WorkerManager"
-import {Log} from "../Utilities/Logger";
+import { Log, Warn } from "../Utilities/Logger";
+import { ServerBackendV2 } from "./ServerBackend";
 
-class ServerFrontend {
-    private _backend: Backend;
-    private _discordBot: DiscordBot | undefined;
-    private _worker: Balancer | Worker;
+const HTTP_CODES = {
+    OK: 200,
+    BAD_REQUEST: 400,
+    AUTH_ERROR: 401,
+    INTERNAL_SERVER_ERROR: 500
+}
 
-    constructor(Backend: Backend, WorkerProcessor: Balancer | Worker, DiscordBot: DiscordBot | undefined) {
-        this._backend = Backend;
-        this._worker = WorkerProcessor;
-        this._discordBot = DiscordBot;
+const COMMON_SERVER_ERRORS = {
+    API_KEY_ERROR: "API_KEY_ERROR",
+    INVALID_QUERY: "INVALID_QUERY",
+    INTERNAL_SERVER_ERROR: "INTERNAL_SERVER_ERROR"
+}
 
-        Log("ServerFrontend initialize");
+type RequestQueries = {[queryName: string]: any};
+type RequestHandlerFunction = ((queries: {[queryName: string]: string}) => ResponseDefiner);
+type RequestAsyncHandlerFunction = ((queries: {[queryName: string]: string}) => Promise<ResponseDefiner>);
 
-        this._worker.bind('/', (Request: any, Response: any) => {
-            Response.send("API site for Liquid Breakout.\nCurrent APIs:\n-Whitelisting\n-ID Converter");
-        }, true);
-        this._worker.bind('/whitelist', async (Request: any, Response: any) => {
-            const RequestQuery = Request.query;
-            let AssetId: number = RequestQuery.assetId ? parseInt(RequestQuery.assetId.toString()) : NaN;
-            let UserId: number = RequestQuery.userId ? parseInt(RequestQuery.userId.toString()) : NaN;
-            let ApiKey: string = RequestQuery.apiKey ? RequestQuery.apiKey.toString() : "NULL";
+class RequestDefiner {
+    private _frontend: ServerFrontendV2 | undefined = undefined;
+    private _handlerFunction: RequestHandlerFunction | RequestAsyncHandlerFunction | undefined = undefined;
 
-            if (isNaN(AssetId)) {
-                Response.status(400).send("Invalid assetId param.")
-				return;
-			}
-            if (isNaN(UserId)) {
-				Response.status(400).send("Invalid userId param.")
-				return;
+    public url: string = "unknown";
+    public method: "GET" | "POST" = "GET";
+    public queriesDefine: RequestQueries = {};
+    public requireApiKey: boolean = false;
+    public mustBeBalancer: boolean = false;
+    public processPower: number = 0;
+
+    // Internal handlers
+    private async _checkForApiKeyHeader(Request: any): Promise<boolean> {
+        let receivedApiKey: string | undefined = Request.headers["x-api-key"];
+        if (receivedApiKey) {
+            if (this._frontend) {
+                return await this._frontend.ServerBackend.Backend.IsValidApiKey(receivedApiKey);
+            } else {
+                // No backend to check, always true
+                return true;
             }
-            if (ApiKey == "NULL" || !(await this._backend.IsValidApiKey(ApiKey))) {
-				Response.status(400).send("Invalid apiKey param or API key has been invalidated.")
-				return;
-            }
+        }
 
-            let backendResponse = await this._backend.WhitelistAsset(AssetId, UserId);
-            if (this._discordBot) {
-                if (backendResponse.code == this._backend.OutputCodes.OPERATION_SUCCESS || backendResponse.code == this._backend.OutputCodes.ALREADY_WHITELISTED)
-                    this._discordBot.LogWhitelist(null, UserId.toString(), AssetId, true, backendResponse.message)
-                else
-                    this._discordBot.LogWhitelist(null, UserId.toString(), AssetId, false, `Code: ${this._backend.LookupNameByOutputCode(backendResponse.code)}\n${backendResponse.message}`)
-            }
+        return false;
+    }
+    private _createQueriesFromInfo(Request: any): any {
+        let createdQueries: RequestQueries = {};
+        let receivedQueries: RequestQueries = Request.query;
 
-            Response.send(backendResponse);
-        }, true);
-        this._worker.bind('/scanmap', async (Request: any, Response: any) => {
-            const RequestQuery = Request.query;
-            let AssetId: number = RequestQuery.assetId ? parseInt(RequestQuery.assetId.toString()) : NaN;
-            let ApiKey: string = RequestQuery.apiKey ? RequestQuery.apiKey.toString() : "NULL";
-
-            if (isNaN(AssetId)) {
-                Response.status(400).send("Invalid assetId param.")
-				return;
-			}
-            if (ApiKey == "NULL" || !(await this._backend.IsValidApiKey(ApiKey))) {
-				Response.status(400).send("Invalid apiKey param or API key has been invalidated.")
-				return;
+        Object.keys(this.queriesDefine).forEach((queryName: string) => {
+            const paramType = this.queriesDefine[queryName];
+            let newParamValue = undefined;
+            let receivedParamValue = receivedQueries[queryName];
+            if (!receivedParamValue) {
+                return;
             }
 
-            let backendReponse = await this._backend.ScanForMaliciousScripts(AssetId);
-            Response.send(backendReponse);
-        }, false, 23)
-        this._worker.bind('/getshareableid', (Request: any, Response: any) => {
-            const RequestQuery = Request.query;
-            let AssetId: number = RequestQuery.assetId ? parseInt(RequestQuery.assetId.toString()) : NaN;
+            if (paramType == "string") {
+                newParamValue = receivedParamValue.toString();
+            } else if (paramType == "int") {
+                newParamValue = (receivedParamValue.toString());
+            }
 
-            if (isNaN(AssetId)) {
-                Response.status(400).send("Invalid assetId param.")
-				return;
-			}
-
-            Response.send(this._backend.IDConverter.Short(AssetId.toString()));
+            if (newParamValue) {
+                createdQueries[queryName] = newParamValue;
+            }
         });
-        this._worker.bind('/getnumberid', async (Request: any, Response: any) => {
-            const RequestQuery = Request.query;
-            let AssetId: string | undefined = RequestQuery.assetId ? RequestQuery.assetId.toString() : undefined;
-            let ApiKey: string = RequestQuery.apiKey ? RequestQuery.apiKey.toString() : "NULL";
 
-            if (AssetId == undefined) {
-                Response.status(400).send("Invalid assetId param.")
-				return;
-			}
-            if (ApiKey == "NULL" || !(await this._backend.IsValidApiKey(ApiKey))) {
-				Response.status(400).send("Invalid apiKey param or API key has been invalidated.")
-				return;
+        return createdQueries;
+    }
+
+    private async _handler(Request: any, Response: any) {
+        Log("start async");
+        if (!this._handlerFunction) {
+            return;
+        }
+        if (this.requireApiKey) {
+            if (!(await this._checkForApiKeyHeader(Request))) {
+                let responseObject: ResponseDefiner =
+                    new ResponseDefiner()
+                        .code(HTTP_CODES.AUTH_ERROR)
+                        .specificError(COMMON_SERVER_ERRORS.API_KEY_ERROR)
+                        .message("Invalid API key.")
+                return Response.status(responseObject.httpResponseCode).send(responseObject.serialize());
             }
+        }
+        let queries = this._createQueriesFromInfo(Request);
 
-            Response.send(this._backend.IDConverter.Number(AssetId.toString()));
-        });
-        this._worker.bind('/queryscriptfilter', async (Request: any, Response: any) => {
-            const RequestQuery = Request.query;
-            let ApiKey: string = RequestQuery.apiKey ? RequestQuery.apiKey.toString() : "NULL";
+        // Query validation
+        const queriesDefineKeys = Object.keys(this.queriesDefine);
+        for (let i = 0; i < queriesDefineKeys.length; i++) {
+            let queryName: string = queriesDefineKeys[i];
+            let queryType: string = this.queriesDefine[queryName];
 
-            if (ApiKey == "NULL" || !(await this._backend.IsValidApiKey(ApiKey))) {
-				Response.status(400).send("Invalid apiKey param or API key has been invalidated.")
-				return;
+            if (!queries[queryName]) {
+                let responseObject: ResponseDefiner =
+                    new ResponseDefiner()
+                        .code(HTTP_CODES.BAD_REQUEST)
+                        .specificError(COMMON_SERVER_ERRORS.INVALID_QUERY)
+                        .message(`Query "${queryName}" must exist and be of type "${queryType}".`)
+                return Response.status(responseObject.httpResponseCode).send(responseObject.serialize());
             }
+        }
 
-            Response.send(JSON.stringify(this._backend.ScriptsFilterList.roblox));
-        }, true);
+        let responseObject: ResponseDefiner = this._handlerFunction.constructor.name === "AsyncFunction" ? await (this._handlerFunction(queries) as Promise<ResponseDefiner>) : this._handlerFunction(queries) as ResponseDefiner;
+        Response.status(responseObject.httpResponseCode).send(responseObject.serialize());
+    }
 
-         this._worker.bind('/internal/getplacefile', async (Request: any, Response: any) => {
-            const RequestQuery = Request.query;
-            let PlaceId: number = RequestQuery.placeId ? parseInt(RequestQuery.placeId.toString()) : NaN
-            let ApiKey: string = RequestQuery.apiKey ? RequestQuery.apiKey.toString() : "NULL";
+    // Setters
+    public attachServerFrontend(frontend: ServerFrontendV2) {
+        this._frontend = frontend;
+        return this;
+    }
+    public usingUrl(url: string) {
+        this.url = url;
+        return this;
+    }
+    public requestMethod(method: "GET" | "POST") {
+        this.method = method;
+        return this;
+    }
+    public setQuery(queriesInfo: RequestQueries) {
+        this.queriesDefine = queriesInfo;
+        return this;
+    }
+    public needApiKey(need: boolean) {
+        this.requireApiKey = true;
+        return this;
+    }
+    public balancerOnly(balancerOnly: boolean) {
+        this.mustBeBalancer = balancerOnly;
+        return this;
+    }
+    public requireProcessPower(power: number) {
+        this.processPower = power;
+        return this;
+    }
 
-            if (isNaN(PlaceId)) {
-                Response.status(400).send("Invalid placeId param.")
-				return;
-			}
-            if (ApiKey == "NULL" || !(await this._backend.IsValidApiKey(ApiKey))) {
-				Response.status(400).send("Invalid apiKey param or API key has been invalidated.")
-				return;
-            }
+    // Main handler
+    public on(handlerFunction: RequestHandlerFunction | RequestAsyncHandlerFunction) {
+        if (!this._frontend) {
+            return Warn(`${this.url} does not have a server frontend attached to!`)
+        }
 
-            this._backend.Internal_GetPlaceFile(PlaceId, Response);
-        }, true);
-
-	    this._worker.bind('/internal/getmodelbinary', async (Request: any, Response: any) => {
-            const RequestQuery = Request.query;
-            let AssetId: number = RequestQuery.assetId ? parseInt(RequestQuery.assetId.toString()) : NaN
-            let ApiKey: string = RequestQuery.apiKey ? RequestQuery.apiKey.toString() : "NULL";
-
-            if (isNaN(AssetId)) {
-                Response.status(400).send("Invalid assetId param.")
-				return;
-			}
-            if (ApiKey == "NULL" || !(await this._backend.IsValidApiKey(ApiKey))) {
-				Response.status(400).send("Invalid apiKey param or API key has been invalidated.")
-				return;
-            }
-
-            this._backend.Internal_GetModelBinary(AssetId, Response);
-        }, true);
-
-        this._worker.bind('/restartbot', async (Request: any, Response: any) => {
-            const RequestQuery = Request.query;
-            let ApiKey: string = RequestQuery.apiKey ? RequestQuery.apiKey.toString() : "NULL";
-
-            if (ApiKey == "NULL" || !(await this._backend.IsValidApiKey(ApiKey))) {
-				Response.status(400).send("Invalid apiKey param or API key has been invalidated.")
-				return;
-            }
-            if (this._discordBot && !this._discordBot.Alive)
-                this._discordBot.start();
-            Response.send("Request sent to bot.")
-        }, true);
-
-        this._worker.bind('/getsoundfrequencydata', async (Request: any, Response: any) => {
-            const RequestQuery = Request.query;
-            let AudioId: number = RequestQuery.audioId ? parseInt(RequestQuery.audioId.toString()) : NaN;
-            let Compress: boolean = RequestQuery.compress ? RequestQuery.compress.toString() == "true" : false;
-
-            if (isNaN(AudioId)) {
-                Response.status(400).send("Invalid audioId param.")
-				return;
-			}
-
-            Response.send(await this._backend.GetSoundFrequenciesData(AudioId, Compress));
-        }, false, 20);
-
-        this._worker.bind('/player/isbanned', async (Request: any, Response: any) => {
-            const RequestQuery = Request.query;
-            let UserId: number = RequestQuery.userId ? parseInt(RequestQuery.userId.toString()) : NaN;
-            if (isNaN(UserId)) {
-                Response.status(400).send("Invalid userId param.")
-				return;
-			}
-
-            Response.send(await this._backend.IsPlayerBanned(UserId));
-        }, false);
-
-        this._worker.bind('/player/getbandata', async (Request: any, Response: any) => {
-            const RequestQuery = Request.query;
-            let UserId: number = RequestQuery.userId ? parseInt(RequestQuery.userId.toString()) : NaN;
-            if (isNaN(UserId)) {
-                Response.status(400).send("Invalid userId param.")
-				return;
-			}
-
-            Response.send(await this._backend.GetPlayerBannedData(UserId) || null);
-        }, false);
-
-        this._worker.bind('/player/getbanlist', async (Request: any, Response: any) => {
-            Response.send(await this._backend.GetBanList() || []);
-        }, false);
-
-        this._worker.bind('/player/ban', async (Request: any, Response: any) => {
-            const RequestQuery = Request.query;
-            let UserId: number = RequestQuery.userId ? parseInt(RequestQuery.userId.toString()) : NaN;
-            let BanDuration: number = RequestQuery.duration ? parseInt(RequestQuery.duration.toString()) : NaN;
-            let BanReason: string = RequestQuery.reason ? RequestQuery.reason.toString() : "NULL";
-            let Moderator: string = RequestQuery.moderator ? RequestQuery.moderator.toString() : "NULL";
-            let ApiKey: string = RequestQuery.apiKey ? RequestQuery.apiKey.toString() : "NULL";
-
-            if (isNaN(UserId)) {
-                Response.status(400).send("Invalid userId param.")
-				return;
-			}
-            if (isNaN(BanDuration)) {
-                Response.status(400).send("Invalid duration param.")
-				return;
-			}
-            if (BanDuration != -1 && BanDuration < 0) {
-                Response.status(400).send("duration param cannot be negative (unless if it's -1, which will ban indefinitely).")
-				return;
-            }
-            if (BanReason == "NULL") {
-                Response.status(400).send("Invalid reason param.")
-				return;
-			}
-            if (Moderator == "NULL") {
-                Response.status(400).send("Invalid moderator param.")
-				return;
-			}
-            if (ApiKey == "NULL" || !(await this._backend.IsValidApiKey(ApiKey))) {
-				Response.status(400).send("Invalid apiKey param or API key has been invalidated.")
-				return;
-            }
-
-            await this._backend.BanPlayer("API", UserId, BanDuration, Moderator, BanReason);
-            await this._backend.RemovePlayerFromLeaderboard(UserId);
-            Response.send("Banned");
-        }, false);
-        
-        this._worker.bind('/player/unban', async (Request: any, Response: any) => {
-            const RequestQuery = Request.query;
-            let UserId: number = RequestQuery.userId ? parseInt(RequestQuery.userId.toString()) : NaN;
-            let ApiKey: string = RequestQuery.apiKey ? RequestQuery.apiKey.toString() : "NULL";
-
-            if (isNaN(UserId)) {
-                Response.status(400).send("Invalid userId param.")
-				return;
-			}
-            if (ApiKey == "NULL" || !(await this._backend.IsValidApiKey(ApiKey))) {
-				Response.status(400).send("Invalid apiKey param or API key has been invalidated.")
-				return;
-            }
-
-            await this._backend.UnbanPlayer(UserId);
-            Response.send("Unbanned");
-        }, false);
+        this._handlerFunction = handlerFunction;
+        this._frontend._worker.bind(
+            this.url,
+            // if passed the function, "this" context will be gone
+            // hence we create a new function
+            (...args: [any, any]) => this._handler.apply(this, args),
+            this.method,
+            this.mustBeBalancer,
+            this.processPower
+        );
     }
 }
 
-export default ServerFrontend;
+class ResponseDefiner {
+    public httpResponseCode: number = HTTP_CODES.OK;
+    public responseMessage: string | undefined = undefined
+    public error: string | undefined = undefined;
+    public data: {[name: string]: any} = {};
+
+    // Setters
+    public code(code: number) {
+        this.httpResponseCode = code;
+        return this;
+    }
+    public message(message: string | undefined) {
+        this.responseMessage = message;
+        return this;
+    }
+    public specificError(error: string | undefined) {
+        this.error = error;
+        return this;
+    }
+    public addData(dataName: string, dataValue: any) {
+        this.data[dataName] = dataValue;
+        return this;
+    }
+
+    // Main thingy
+    public serialize() {
+        return {
+            errorMessage: this.error,
+            message: this.responseMessage,
+            data: this.data
+        }
+    }
+}
+
+class ServerFrontendV2 {
+    public _worker: Balancer | Worker;
+    public ServerBackend: ServerBackendV2;
+
+    constructor(ServerBackend: any, WorkerProcessor: Balancer | Worker) {
+        this._worker = WorkerProcessor;
+        this.ServerBackend = ServerBackend;
+
+        Log("ServerFrontendV2 initialized");
+
+        // GET requests
+
+        // POST requests
+        new RequestDefiner()
+            .attachServerFrontend(this)
+            .usingUrl("/api/v2/whitelist")
+            .requestMethod("POST")
+            .setQuery({
+                assetId: "int",
+                userId: "int"
+            })
+            .needApiKey(true)
+            .balancerOnly(true)
+            .on(async (queries: RequestQueries) => {
+                let [success, errorCode, message] = await this.ServerBackend.WhitelistAsset(queries.assetId, queries.userId);
+                return new ResponseDefiner()
+                    .code(success ? HTTP_CODES.OK : HTTP_CODES.BAD_REQUEST)
+                    .specificError(errorCode)
+                    .message(message)
+            });
+
+        new RequestDefiner()
+            .attachServerFrontend(this)
+            .usingUrl("/api/v2/player/ban")
+            .requestMethod("POST")
+            .setQuery({
+                userId: "int",
+                banDuration: "int",
+                reason: "string",
+                moderator: "string"
+            })
+            .needApiKey(true)
+            .on(async (queries: RequestQueries) => {
+                if (queries.banDuration != 1 && queries.banDuration < 0) {
+                    return new ResponseDefiner()
+                        .code(HTTP_CODES.BAD_REQUEST)
+                        .specificError(COMMON_SERVER_ERRORS.INVALID_QUERY)
+                        .message("Ban duration cannot be negative. (Can be set to -1 for infinite duration.)")
+                }
+
+                let [banSuccess, removeLeaderboardSuccess, errorMessage] = await this.ServerBackend.BanPlayer(queries.userId, queries.banDuration, queries.reason, queries.moderator);
+                
+                return new ResponseDefiner()
+                    .code(banSuccess ? HTTP_CODES.OK : HTTP_CODES.INTERNAL_SERVER_ERROR)
+                    .specificError(!banSuccess ? COMMON_SERVER_ERRORS.INTERNAL_SERVER_ERROR : undefined)
+                    .message(errorMessage != undefined ? `Failed to ban: ${errorMessage}` : undefined)
+                    .addData("banned", banSuccess)
+                    .addData("removedFromLeaderboard", removeLeaderboardSuccess)
+            });
+
+        new RequestDefiner()
+            .attachServerFrontend(this)
+            .usingUrl("/api/v2/player/unban")
+            .requestMethod("POST")
+            .setQuery({
+                userId: "int"
+            })
+            .needApiKey(true)
+            .on(async (queries: RequestQueries) => {
+                let [unbanSuccess, errorMessage] = await this.ServerBackend.BanPlayer(queries.userId, queries.banDuration, queries.reason, queries.moderator);
+                
+                return new ResponseDefiner()
+                    .code(unbanSuccess ? HTTP_CODES.OK : HTTP_CODES.INTERNAL_SERVER_ERROR)
+                    .specificError(!unbanSuccess ? COMMON_SERVER_ERRORS.INTERNAL_SERVER_ERROR : undefined)
+                    .message(errorMessage != undefined ? `Failed to unban: ${errorMessage}` : undefined)
+                    .addData("unbanned", unbanSuccess)
+            });
+    }
+}
+
+export {ServerFrontendV2}

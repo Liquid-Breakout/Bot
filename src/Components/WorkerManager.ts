@@ -35,7 +35,7 @@ class WorkerBase {
     public _socketCommunicator: WebSocket | sockjsServer.Server | undefined = undefined;
     public _bindedUrls: {[url: string]: any} = {};
 
-    public bind(url: string, processFunc: any, mustBeBalancer?: boolean) {
+    public bind(url: string, processFunc: any, processType: "GET" | "POST", mustBeBalancer?: boolean) {
         if (mustBeBalancer) {
             return;
         }
@@ -54,6 +54,126 @@ class Balancer extends WorkerBase {
     }} = {};
 
     public WorkerAvaliable: boolean = false;
+
+    private async handleRequest(url: string, Request: any, Response: any, mustBeBalancer?: boolean) {
+        var workerCanProcess = this.WorkerAvaliable && !mustBeBalancer;
+            if (workerCanProcess) {
+                Log(`WorkerManager: Finding workers for '${url}'...`);
+                this.sendMessage({type: "requestWorker", url: url});
+                await sleepUntil(() => this._jobsData[url].workersReady.length > 0, 2000); // 2 seconds timeframe
+                workerCanProcess = this._jobsData[url].workersReady.length > 0;
+                if (workerCanProcess) {
+                    // Filter out failed workers
+                    this._jobsData[url].workersFailed.forEach((workerId: string) => {
+                        const foundIndex: number = this._jobsData[url].workersReady.indexOf(workerId);
+                        if (foundIndex !== -1) {
+                            this._jobsData[url].workersReady.splice(foundIndex, 1);
+                        }
+                    });
+
+                    // Find the least busy worker and most powerful
+                    this._jobsData[url].workersReady.sort((workerA, workerB) => {
+                        const workerAInfo = this._registeredWorkers[workerA].info;
+                        const workerBInfo = this._registeredWorkers[workerB].info;
+
+                        if (workerAInfo && workerBInfo) {
+                            if (workerAInfo.jobsProcessing < workerBInfo.jobsProcessing) {
+                                let push = -1
+                                if (workerAInfo.processPower > workerBInfo.processPower) {
+                                    push = 1;
+                                }
+                                if (workerAInfo.processPower >= this._jobsData[url].processPowerRequired) {
+                                    push = 1;
+                                } else if (workerBInfo.processPower >= this._jobsData[url].processPowerRequired) {
+                                    push = -1;
+                                }
+                                return push
+                            } else if (workerBInfo.jobsProcessing < workerAInfo.jobsProcessing) {
+                                let push = -1
+                                if (workerBInfo.processPower > workerAInfo.processPower) {
+                                    push = 1;
+                                }
+                                if (workerBInfo.processPower >= this._jobsData[url].processPowerRequired) {
+                                    push = 1;
+                                } else if (workerAInfo.processPower >= this._jobsData[url].processPowerRequired) {
+                                    push = -1;
+                                }
+                                return push
+                            }
+                        } else {
+                            if (workerAInfo) {
+                                if (workerAInfo.processPower >= this._jobsData[url].processPowerRequired) {
+                                    return 1;
+                                } else {
+                                    return -1
+                                }
+                            } else {
+                                if (workerBInfo.processPower >= this._jobsData[url].processPowerRequired) {
+                                    return 1;
+                                } else {
+                                    return -1
+                                }
+                            }
+                        }
+
+                        return 0;
+                    })
+
+                    let selectedWorker = this._jobsData[url].workersReady[0];
+                    let preparedQuery = Request.query;
+                    let preparedParams = Request.params;
+                    let preparedHeaders = Request.headers;
+                    let newJobId = Guid.create().toString();
+
+                    Log(`WorkerManager: Worker chosen for '${url}': ${selectedWorker} (jobsProcessing: ${this._registeredWorkers[selectedWorker].info.jobsProcessing}, processPower: ${this._registeredWorkers[selectedWorker].info.processPower}), job ID: ${newJobId}`);
+
+                    this._jobsData[url].workersReady.splice(0, 1);
+                    this.sendMessage({
+                        type: "assignJob",
+                        worker: selectedWorker,
+                        jobId: newJobId,
+                        url: url,
+                        query: preparedQuery,
+                        params: preparedParams,
+                        headers: preparedHeaders
+                    });
+                    await sleepUntil(() => this._jobsData[url].results[newJobId] != undefined, 50000); // 50 seconds timeframe
+
+                    const results = this._jobsData[url].results[newJobId];
+                    if (results) {
+                        Response.status(results.statusCode).send(results.data);
+                    } else {
+                        //this._jobsData[url].workersFailed.push(selectedWorker);
+                        Response.status(500).send("Worker failed to complete job.");
+                    }
+                    delete this._jobsData[url].results[newJobId];
+                }
+            }
+            if (!workerCanProcess) {
+                if (mustBeBalancer) {
+                    Log(`WorkerManager: Process '${url}' must be done by Balancer, processing...`);
+                } else {
+                    Warn(`WorkerManager: No worker avaliable to process, Balancer will now take over '${url}'...`);
+                }
+
+                let handlerFunction = this._bindedUrls[url];
+                try {
+                    if (handlerFunction.constructor.name === "AsyncFunction") {
+                        await handlerFunction(Request, Response);
+                    } else {
+                        handlerFunction(Request, Response);
+                    }
+                } catch (exception) {
+                    if (typeof exception === "string") {
+                        Response.status(500).send(exception);
+                    } else if (exception instanceof Error) {
+                        Response.status(500).send(exception.message);
+                    } else {
+                        Response.status(500).send("Server (Balancer) encountered an error.");
+                    }
+                }
+            }
+    }
 
     public sendMessage(data: any) {
         if (isSocketServer(this._socketCommunicator)) {
@@ -160,8 +280,8 @@ class Balancer extends WorkerBase {
         }, 30000); // Every 15 seconds technically
     }
 
-    public override bind(url: string, processFunc: any, mustBeBalancer?: boolean, processPower?: number) {
-        this._bindedUrls[url] = processFunc;
+    public override bind(url: string, handlerFunc: any, requestType: "GET" | "POST", mustBeBalancer?: boolean, processPower?: number) {
+        this._bindedUrls[url] = handlerFunc;
         this._jobsData[url] = {
             workersReady: [],
             workersFailed: [],
@@ -169,121 +289,11 @@ class Balancer extends WorkerBase {
             processPowerRequired: processPower || 0
         };
 
-        this._serverApp.get(url, async (Request: Request, Response: Response) => {
-            var workerCanProcess = this.WorkerAvaliable && !mustBeBalancer;
-            if (workerCanProcess) {
-                Log(`WorkerManager: Finding workers for '${url}'...`);
-                this.sendMessage({type: "requestWorker", url: url});
-                await sleepUntil(() => this._jobsData[url].workersReady.length > 0, 2000); // 2 seconds timeframe
-                workerCanProcess = this._jobsData[url].workersReady.length > 0;
-                if (workerCanProcess) {
-                    // Filter out failed workers
-                    this._jobsData[url].workersFailed.forEach((workerId: string) => {
-                        const foundIndex: number = this._jobsData[url].workersReady.indexOf(workerId);
-                        if (foundIndex !== -1) {
-                            this._jobsData[url].workersReady.splice(foundIndex, 1);
-                        }
-                    });
-
-                    // Find the least busy worker and most powerful
-                    this._jobsData[url].workersReady.sort((workerA, workerB) => {
-                        const workerAInfo = this._registeredWorkers[workerA].info;
-                        const workerBInfo = this._registeredWorkers[workerB].info;
-
-                        if (workerAInfo && workerBInfo) {
-                            if (workerAInfo.jobsProcessing < workerBInfo.jobsProcessing) {
-                                let push = -1
-                                if (workerAInfo.processPower > workerBInfo.processPower) {
-                                    push = 1;
-                                }
-                                if (workerAInfo.processPower >= this._jobsData[url].processPowerRequired) {
-                                    push = 1;
-                                } else if (workerBInfo.processPower >= this._jobsData[url].processPowerRequired) {
-                                    push = -1;
-                                }
-                                return push
-                            } else if (workerBInfo.jobsProcessing < workerAInfo.jobsProcessing) {
-                                let push = -1
-                                if (workerBInfo.processPower > workerAInfo.processPower) {
-                                    push = 1;
-                                }
-                                if (workerBInfo.processPower >= this._jobsData[url].processPowerRequired) {
-                                    push = 1;
-                                } else if (workerAInfo.processPower >= this._jobsData[url].processPowerRequired) {
-                                    push = -1;
-                                }
-                                return push
-                            }
-                        } else {
-                            if (workerAInfo) {
-                                if (workerAInfo.processPower >= this._jobsData[url].processPowerRequired) {
-                                    return 1;
-                                } else {
-                                    return -1
-                                }
-                            } else {
-                                if (workerBInfo.processPower >= this._jobsData[url].processPowerRequired) {
-                                    return 1;
-                                } else {
-                                    return -1
-                                }
-                            }
-                        }
-
-                        return 0;
-                    })
-
-                    let selectedWorker = this._jobsData[url].workersReady[0];
-                    let preparedQuery = Request.query;
-                    let preparedParams = Request.params
-                    let newJobId = Guid.create().toString();
-
-                    Log(`WorkerManager: Worker chosen for '${url}': ${selectedWorker} (jobsProcessing: ${this._registeredWorkers[selectedWorker].info.jobsProcessing}, processPower: ${this._registeredWorkers[selectedWorker].info.processPower}), job ID: ${newJobId}`);
-
-                    this._jobsData[url].workersReady.splice(0, 1);
-                    this.sendMessage({
-                        type: "assignJob",
-                        worker: selectedWorker,
-                        jobId: newJobId,
-                        url: url,
-                        query: preparedQuery,
-                        params: preparedParams
-                    });
-                    await sleepUntil(() => this._jobsData[url].results[newJobId] != undefined, 50000); // 50 seconds timeframe
-
-                    const results = this._jobsData[url].results[newJobId];
-                    if (results) {
-                        Response.status(results.statusCode).send(results.data);
-                    } else {
-                        //this._jobsData[url].workersFailed.push(selectedWorker);
-                        Response.status(500).send("Worker failed to complete job.");
-                    }
-                    delete this._jobsData[url].results[newJobId];
-                }
-            }
-            if (!workerCanProcess) {
-                if (mustBeBalancer) {
-                    Log(`WorkerManager: Process '${url}' must be done by Balancer, processing...`);
-                } else {
-                    Warn(`WorkerManager: No worker avaliable to process, Balancer will now take over '${url}'...`);
-                }
-                try {
-                    if (processFunc.constructor.name === "AsyncFunction") {
-                        await processFunc(Request, Response);
-                    } else {
-                        processFunc(Request, Response);
-                    }
-                } catch (exception) {
-                    if (typeof exception === "string") {
-                        Response.status(500).send(exception);
-                    } else if (exception instanceof Error) {
-                        Response.status(500).send(exception.message);
-                    } else {
-                        Response.status(500).send("Server (Balancer) encountered an error.");
-                    }
-                }
-            }
-        })
+        if (requestType == "GET") {
+            this._serverApp.get(url, async (Request: Request, Response: Response) => this.handleRequest(url, Request, Response, mustBeBalancer));
+        } else if (requestType == "POST") {
+            this._serverApp.post(url, async (Request: Request, Response: Response) => this.handleRequest(url, Request, Response, mustBeBalancer));
+        }
     }
 
     constructor(_: any) {
@@ -294,12 +304,14 @@ class Balancer extends WorkerBase {
 }
 
 class WorkerRequest {
-    public query: {[queryName: string]: string | undefined} = {};
-    public params: {[paramName: string]: string | undefined} = {};
+    public query: {[queryName: string]: any} = {};
+    public params: {[paramName: string]: any} = {};
+    public headers: {[headerName: string]: any} = {};
 
-    constructor(query: {[queryName: string]: string | undefined}, params: {[paramName: string]: string | undefined}) {
+    constructor(query: {[queryName: string]: any}, params: {[paramName: string]: any}, headers: {[headerName: string]: any}) {
         this.query = query;
         this.params = params;
+        this.headers = headers;
     }
 }
 
@@ -387,7 +399,7 @@ class Worker extends WorkerBase {
                     this.jobsProcessing += 1;
                     Log(`WorkerManager (Job ${receivedData.jobId}): Preparing objects for request.`);
                     
-                    const jobRequest = new WorkerRequest(receivedData.query, receivedData.params);
+                    const jobRequest = new WorkerRequest(receivedData.query, receivedData.params, receivedData.headers);
                     const jobResponse = new WorkerResponse();
 
                     (async () => {

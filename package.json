@@ -1,8 +1,8 @@
 {
   "name": "liquid-breakout-backend",
-  "version": "0.0.2_1",
+  "version": "0.0.2_2",
   "description": "The backend serving all requests that requires an external server for Liquid Breakout.",
-  "main": "index.js",
+  "main": "app/index.js",
   "scripts": {
     "build": "npx babel src --out-dir build --extensions \".js,.ts\" --ignore \"src/**/*.d.ts\"",
     "build_app": "npm run build && bash scripts/build_app.sh",

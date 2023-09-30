@@ -4,7 +4,9 @@ import dotenv from "dotenv";
 import { Guid } from "guid-typescript"
 
 import Backend from "./Components/Backend";
-import ServerFrontend from "./Components/ServerFrontend";
+import LegacyServerFrontend from "./Components/LegacyServerFrontend";
+import { ServerBackendV2 } from "./Components/ServerBackend";
+import { ServerFrontendV2 } from "./Components/ServerFrontend";
 import {DiscordBot} from "./Components/DiscordBot";
 import {Balancer, Worker} from "./Components/WorkerManager";
 import {Log, SetWorkerStatus} from "./Utilities/Logger";
@@ -46,4 +48,5 @@ if (cluster.isPrimary && IsBalancer) {
 } else {
 	Log(`Worker ${(WorkerProcessor instanceof Worker) ? WorkerProcessor._id : "unknown"} started.`);
 }
-new ServerFrontend(AppBackend, WorkerProcessor, Bot);
+new LegacyServerFrontend(AppBackend, WorkerProcessor, Bot);
+new ServerFrontendV2(new ServerBackendV2(AppBackend, Bot), WorkerProcessor);
