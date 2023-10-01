@@ -4,7 +4,7 @@ import { DiscordBot, DiscordBotCompatibilityLayer } from "../Components/DiscordB
 module.exports = {
     requires: ["PRIVILEGE"],
 	slashData: new SlashCommandBuilder()
-		.setName("unban")
+		.setName("unban_by_username")
 		.setDescription("Unban a player, using their username.")
         .addStringOption((option: SlashCommandStringOption) => option.setName("user_name").setDescription("User name of a player.").setRequired(true)),
 	async execute(Bot: DiscordBot, Interaction: ChatInputCommandInteraction<any> | Message<boolean>, Arguments: any[]) {
