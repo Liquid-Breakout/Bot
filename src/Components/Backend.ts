@@ -841,12 +841,9 @@ class Backend {
             if (!storeEntry.data) {
                 return;
             }
-            if (!storeEntry.data.filter) {
-                console.log("how", storeEntry.data);
-                return;
-            }
+            let entryData = Array.from(storeEntry.data);
 
-            storeEntry.data = storeEntry.data.filter(item => item.UserId != UserId);
+            storeEntry.data = entryData.filter(item => item.UserId != UserId);
             Success &&= await this.SaveToRobloxDataStore(325334351, storeEntry.datastore, undefined, "Data", storeEntry.data);
         });
 

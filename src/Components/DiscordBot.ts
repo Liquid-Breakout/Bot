@@ -169,14 +169,11 @@ class DiscordBot {
                     });
                 })();
 
-                const LeaderboardData = await this.Backend.FetchRobloxDataStore(325334351, `Leaderboards-${MonthName}-${LastYear}`, undefined, "Data");
+                let LeaderboardData = await this.Backend.FetchRobloxDataStore(325334351, `Leaderboards-${MonthName}-${LastYear}`, undefined, "Data");
                 if (!LeaderboardData) {
                     return;
                 }
-                if (!LeaderboardData.sort) {
-                    console.log("how", LeaderboardData);
-                    return;
-                }
+                LeaderboardData = Array.from(LeaderboardData);
 
                 LeaderboardData.sort((rankA: {UserId: string, XP: number}, rankB: {UserId: string, XP: number}) => {
                     return rankB.XP - rankA.XP
