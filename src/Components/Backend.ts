@@ -587,6 +587,21 @@ class Backend {
         return UserInfo;
     }
 
+    public async GetRobloxUserInfoByUsername(Username: string) {
+        let UserInfo;
+        try {
+            UserInfo = (await axios({
+                url: "https://users.roblox.com/v1/usernames/users",
+                method: "POST",
+                data: JSON.stringify({
+                    "usernames": [Username],
+                    "excludeBannedUsers": true
+                })
+            })).data.data[0];
+        } catch (AxiosResponse) {}
+        return UserInfo;
+    }
+
     public GetRobloxNamePresenationByUserInfo(UserInfo: any) {
         return UserInfo.name == UserInfo.displayName ? UserInfo.name : `${UserInfo.displayName} (@${UserInfo.name})`;
     }
