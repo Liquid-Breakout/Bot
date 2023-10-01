@@ -593,12 +593,14 @@ class Backend {
             UserInfo = (await axios({
                 url: "https://users.roblox.com/v1/usernames/users",
                 method: "POST",
-                data: JSON.stringify({
+                data: {
                     "usernames": [Username],
                     "excludeBannedUsers": true
-                })
+                }
             })).data.data[0];
-        } catch (AxiosResponse) {}
+        } catch (AxiosResponse) {
+            console.log("cannot get user", AxiosResponse)
+        }
         return UserInfo;
     }
 
@@ -837,6 +839,10 @@ class Backend {
             {datastore: "Leaderboards-AllTime", data: AllTimeLeaderboardData}
         ].forEach(async (storeEntry: {datastore: string, data: any[] | undefined}) => {
             if (!storeEntry.data) {
+                return;
+            }
+            if (!Array.isArray(storeEntry.data)) {
+                console.log("how", storeEntry.data);
                 return;
             }
 
