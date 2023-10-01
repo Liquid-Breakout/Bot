@@ -173,7 +173,7 @@ class DiscordBot {
                 if (!LeaderboardData) {
                     return;
                 }
-                if (!((LeaderboardData as any) instanceof Array)) {
+                if (!LeaderboardData.sort) {
                     console.log("how", LeaderboardData);
                     return;
                 }

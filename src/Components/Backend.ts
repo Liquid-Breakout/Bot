@@ -841,7 +841,7 @@ class Backend {
             if (!storeEntry.data) {
                 return;
             }
-            if (!((storeEntry.data as any) instanceof Array)) {
+            if (!storeEntry.data.filter) {
                 console.log("how", storeEntry.data);
                 return;
             }
