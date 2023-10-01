@@ -173,6 +173,9 @@ class DiscordBot {
                 if (!LeaderboardData) {
                     return;
                 }
+                if (!Array.isArray(LeaderboardData)) {
+                    console.log("how", LeaderboardData);
+                }
 
                 LeaderboardData.sort((rankA: {UserId: string, XP: number}, rankB: {UserId: string, XP: number}) => {
                     return rankB.XP - rankA.XP
