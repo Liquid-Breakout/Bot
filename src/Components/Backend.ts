@@ -825,13 +825,7 @@ class Backend {
                 return;
             }
 
-            for (let i = 0; i < storeEntry.data.length; i++) {
-                const leaderboardData: {UserId: number, XP: number} = storeEntry.data[i];
-                if (leaderboardData.UserId == UserId) {
-                    storeEntry.data.splice(i, 1);
-                }
-            }
-
+            storeEntry.data = storeEntry.data.filter(item => item.UserId != UserId);
             Success &&= await this.SaveToRobloxDataStore(325334351, storeEntry.datastore, undefined, "Data", storeEntry.data);
         });
 
