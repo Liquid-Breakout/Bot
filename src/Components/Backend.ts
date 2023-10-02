@@ -633,7 +633,6 @@ class Backend {
         openCloudUrl.searchParams.append("dataStoreName", DataStoreName);
         openCloudUrl.searchParams.append("entryKey", KeyName);
         openCloudUrl.searchParams.append("scope", Scope || "global");
-        console.log("saving to datastore", JSON.stringify(Data))
         try {
             await axios({
                 url: openCloudUrl.toString(),
@@ -642,7 +641,7 @@ class Backend {
                     "x-api-key": this.RobloxApiKey,
                     "Content-Type": "application/json"
                 },
-                data: Data
+                data: JSON.stringify(Data)
             });
             success = true;
         } catch (AxiosResponse: any) {
@@ -858,6 +857,7 @@ class Backend {
             let arrayIndex = 0;
             while (arrayIndex < dataEntry.data.length) {
                 let element = dataEntry.data[arrayIndex];
+                console.log(element, element.UserId, UserId)
                 if (element.UserId == UserId) {
                     FoundUser = true;
                     dataEntry.data.splice(arrayIndex, 1);
