@@ -32,7 +32,14 @@ class ServerBackendV2 {
         try {
             await this.Backend.BanPlayer("API", userId, banDuration, moderator, reason);
             banSuccess = true;
-            removeLeaderboardSuccess = await this.Backend.RemovePlayerFromLeaderboard(userId);
+            const [removedFromLeaderboard, foundInLeaderboard] = await this.Backend.RemovePlayerFromLeaderboard(userId);
+            if (!removedFromLeaderboard) {
+                errorMessage = "Cannot remove from leaderboard(s)."
+            } else if (!foundInLeaderboard) {
+                errorMessage = "Player not found in leaderboard(s)."
+            } else {
+                removeLeaderboardSuccess = true;
+            }
         } catch (err: any) {
             errorMessage = err;
         }
