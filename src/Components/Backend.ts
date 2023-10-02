@@ -639,9 +639,10 @@ class Backend {
                 url: openCloudUrl.toString(),
                 method: "POST",
                 headers: {
-                    "x-api-key": this.RobloxApiKey
+                    "x-api-key": this.RobloxApiKey,
+                    "Content-Type": "application/json"
                 },
-                data: JSON.stringify(Data)
+                data: Data
             });
             success = true;
         } catch (AxiosResponse: any) {
