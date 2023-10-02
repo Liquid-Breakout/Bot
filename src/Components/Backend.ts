@@ -644,7 +644,7 @@ class Backend {
             });
             success = true;
         } catch (AxiosResponse: any) {
-            errorMessage = (AxiosResponse as AxiosError).message;
+            errorMessage = (AxiosResponse as AxiosError).response ? JSON.stringify((AxiosResponse as AxiosError).response?.data) : "unknown error";
         }
         return [success, errorMessage];
     }
