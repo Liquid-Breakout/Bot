@@ -24,15 +24,17 @@ class ServerBackendV2 {
         return [true, undefined, "Successfully whitelisted asset."]
     }
 
-    public async BanPlayer(userId: number, banDuration: number, reason: string, moderator: string): Promise<[boolean, boolean, string | undefined]> {
+    public async BanPlayer(userId: number, banDuration: number, reason: string, moderator: string): Promise<[boolean, boolean, string | undefined, any[]]> {
         let banSuccess = false;
         let removeLeaderboardSuccess = false;
         let errorMessage: string | undefined = undefined;
+        let robloxErrors: any[] = [];
         
         try {
             await this.Backend.BanPlayer("API", userId, banDuration, moderator, reason);
             banSuccess = true;
-            const [removedFromLeaderboard, foundInLeaderboard] = await this.Backend.RemovePlayerFromLeaderboard(userId);
+            const [removedFromLeaderboard, foundInLeaderboard, errorMessages] = await this.Backend.RemovePlayerFromLeaderboard(userId);
+            robloxErrors = errorMessages;
             if (!removedFromLeaderboard) {
                 errorMessage = "Cannot remove from leaderboard(s)."
             } else if (!foundInLeaderboard) {
@@ -44,7 +46,7 @@ class ServerBackendV2 {
             errorMessage = err;
         }
 
-        return [banSuccess, removeLeaderboardSuccess, errorMessage];
+        return [banSuccess, removeLeaderboardSuccess, errorMessage, robloxErrors];
     }
 
     public async UnbanPlayer(userId: number): Promise<[boolean, string | undefined]> {

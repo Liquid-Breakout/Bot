@@ -245,7 +245,7 @@ class ServerFrontendV2 {
                         .message("Ban duration cannot be negative. (Can be set to -1 for infinite duration.)")
                 }
 
-                let [banSuccess, removeLeaderboardSuccess, errorMessage] = await this.ServerBackend.BanPlayer(queries.userId, queries.banDuration, queries.reason, queries.moderator);
+                let [banSuccess, removeLeaderboardSuccess, errorMessage, robloxErrors] = await this.ServerBackend.BanPlayer(queries.userId, queries.banDuration, queries.reason, queries.moderator);
                 
                 return new ResponseDefiner()
                     .code(banSuccess ? HTTP_CODES.OK : HTTP_CODES.INTERNAL_SERVER_ERROR)
@@ -253,6 +253,7 @@ class ServerFrontendV2 {
                     .message(errorMessage != undefined ? `Failed to ban: ${errorMessage}` : undefined)
                     .addData("banned", banSuccess)
                     .addData("removedFromLeaderboard", removeLeaderboardSuccess)
+                    .addData("robloxErrors", robloxErrors)
             });
 
         new RequestDefiner()

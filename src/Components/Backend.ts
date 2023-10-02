@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 import { Response } from "express";
 import mongoose from "mongoose";
 import decodeAudio from "../Utilities/AudioDecoder"
@@ -626,8 +626,9 @@ class Backend {
         return Data;
     }
 
-    public async SaveToRobloxDataStore(UniverseId: number, DataStoreName: string, Scope: string | undefined, KeyName: string, Data: any): Promise<boolean> {
+    public async SaveToRobloxDataStore(UniverseId: number, DataStoreName: string, Scope: string | undefined, KeyName: string, Data: any): Promise<[boolean, any]> {
         let success = false;
+        let errorMessage = undefined;
         let openCloudUrl = new URL(`https://apis.roblox.com/datastores/v1/universes/${UniverseId}/standard-datastores/datastore/entries/entry`);
         openCloudUrl.searchParams.append("dataStoreName", DataStoreName);
         openCloudUrl.searchParams.append("entryKey", KeyName);
@@ -642,8 +643,10 @@ class Backend {
                 data: Data
             });
             success = true;
-        } catch (AxiosResponse: any) {}
-        return success;
+        } catch (AxiosResponse: any) {
+            errorMessage = (AxiosResponse as AxiosError).message;
+        }
+        return [success, errorMessage];
     }
 
     public async Internal_GetPlaceFile(PlaceId: number, ExpressResponse: Response) {
@@ -812,7 +815,7 @@ class Backend {
         return await BannedPlayerModel.find();
     }
 
-    public async RemovePlayerFromLeaderboard(UserId: number): Promise<[boolean, boolean]> {
+    public async RemovePlayerFromLeaderboard(UserId: number): Promise<[boolean, boolean, any[]]> {
         const CurrentDate = new Date();
         const CurrentMonth = CurrentDate.getUTCMonth();
         const CurrentYear = CurrentDate.getUTCFullYear();
@@ -839,6 +842,7 @@ class Backend {
             {datastore: `Leaderboards-${GetMonthName(LastMonth)}-${LastYear}`, data: PreviousLeaderboardData},
             {datastore: "Leaderboards-AllTime", data: AllTimeLeaderboardData}
         ];
+        const ErrorMessages: any[] = [];
 
         for (let index = 0; index < LeaderboardIterData.length; index++) {
             let dataEntry = LeaderboardIterData[index];
@@ -860,10 +864,14 @@ class Backend {
                 }
             }
 
-            Success &&= await this.SaveToRobloxDataStore(325334351, dataEntry.datastore, undefined, "Data", dataEntry.data);
+            let [saveSuccess, errorMessage] = await this.SaveToRobloxDataStore(325334351, dataEntry.datastore, undefined, "Data", dataEntry.data);
+            Success &&= saveSuccess;
+            if (ErrorMessages.indexOf(errorMessage) == -1) {
+                ErrorMessages.push(errorMessage);
+            }
         }
 
-        return [Success, FoundUser];
+        return [Success, FoundUser, ErrorMessages];
     }
 
     public async HasAnnouncedLeaderboardReset() {

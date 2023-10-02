@@ -37,10 +37,10 @@ module.exports = {
         const playerName = Bot.Backend.GetRobloxNamePresenationByUserInfo(playerInfo);
 
         await Bot.Backend.BanPlayer("Discord", playerInfo.id, banDuration, newLayer.author ? `@${newLayer.author.tag}` : "unknown", banReason);
-        let [removedFromLeaderboard, foundInLeaderboard] = await Bot.Backend.RemovePlayerFromLeaderboard(playerInfo.id);
+        let [removedFromLeaderboard, foundInLeaderboard, errorMessages] = await Bot.Backend.RemovePlayerFromLeaderboard(playerInfo.id);
         const removedFromLeaderboardText = "and has been successfully wiped from the leaderboards";
         const notFoundInLeaderboardText = "skipped leaderboard removal as there are no entries in leaderboards.";
-        const cannotRemoveFromLeaderboard = "however cannot be removed from leaderboards due to an error.";
+        const cannotRemoveFromLeaderboard = `however cannot be removed from leaderboards due to error.\nDumped errors: ${JSON.stringify(errorMessages)}`;
 
         let leaderboardStateText = removedFromLeaderboardText;
         if (!removedFromLeaderboard) {
