@@ -639,7 +639,7 @@ class Backend {
                 headers: {
                     "x-api-key": this.RobloxApiKey
                 },
-                data: JSON.stringify(Data)
+                data: Data
             });
             success = true;
         } catch (AxiosResponse: any) {}
@@ -812,7 +812,7 @@ class Backend {
         return await BannedPlayerModel.find();
     }
 
-    public async RemovePlayerFromLeaderboard(UserId: number) {
+    public async RemovePlayerFromLeaderboard(UserId: number): Promise<[boolean, boolean]> {
         const CurrentDate = new Date();
         const CurrentMonth = CurrentDate.getUTCMonth();
         const CurrentYear = CurrentDate.getUTCFullYear();
@@ -820,6 +820,7 @@ class Backend {
         const LastYear = LastMonth == 12 ? CurrentYear - 1 : CurrentYear;
 
         let Success = true;
+        let FoundUser = false;
 
         const GetMonthName = (month: number) => {
             const date = new Date();
@@ -833,19 +834,36 @@ class Backend {
         const CurrentLeaderboardData = await this.FetchRobloxDataStore(325334351, `Leaderboards-${GetMonthName(CurrentMonth)}-${CurrentYear}`, undefined, "Data");
         const PreviousLeaderboardData = await this.FetchRobloxDataStore(325334351, `Leaderboards-${GetMonthName(LastMonth)}-${LastYear}`, undefined, "Data");
         const AllTimeLeaderboardData = await this.FetchRobloxDataStore(325334351, "Leaderboards-AllTime", undefined, "Data");
-        [
+        const LeaderboardIterData = [
             {datastore: `Leaderboards-${GetMonthName(CurrentMonth)}-${CurrentYear}`, data: CurrentLeaderboardData},
             {datastore: `Leaderboards-${GetMonthName(LastMonth)}-${LastYear}`, data: PreviousLeaderboardData},
             {datastore: "Leaderboards-AllTime", data: AllTimeLeaderboardData}
-        ].forEach(async (storeEntry: {datastore: string, data: any[] | undefined}) => {
-            if (!storeEntry.data) {
-                return;
-            }
-            let entryData = Array.from(storeEntry.data);
-            Success &&= await this.SaveToRobloxDataStore(325334351, storeEntry.datastore, undefined, "Data", entryData.filter(item => item.UserId != UserId));
-        });
+        ];
 
-        return Success;
+        for (let index = 0; index < LeaderboardIterData.length; index++) {
+            let dataEntry = LeaderboardIterData[index];
+            if (!dataEntry.data) {
+                continue;
+            }
+            if (!dataEntry.data.length || dataEntry.data.length == 0) {
+                continue;
+            }
+
+            let arrayIndex = 0;
+            while (arrayIndex < dataEntry.data.length) {
+                let element = dataEntry.data[arrayIndex];
+                if (element.UserId == UserId) {
+                    FoundUser = true;
+                    dataEntry.data.splice(arrayIndex, 1);
+                } else {
+                    arrayIndex++;
+                }
+            }
+
+            Success &&= await this.SaveToRobloxDataStore(325334351, dataEntry.datastore, undefined, "Data", dataEntry.data);
+        }
+
+        return [Success, FoundUser];
     }
 
     public async HasAnnouncedLeaderboardReset() {
