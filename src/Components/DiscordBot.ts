@@ -13,8 +13,8 @@ class DiscordBot {
     private _token: string;
     private _clientId: string;
     
-    private privilegeUsers: string[] = ["915410908921077780", "849118831251030046", "456202569740713986"];
-    private reverseShortPrivilegeUsers: string[] = ["915410908921077780", "849118831251030046", "324812431165751298"];
+    private privilegeUsers: string[] = ["915410908921077780", "849118831251030046", "456202569740713986", "268973336392892416"];
+    private reverseShortPrivilegeUsers: string[] = ["915410908921077780", "849118831251030046", "324812431165751298", "456202569740713986", "268973336392892416"];
     private _commands: Collection<string, any>;
     private _commandsData: any[];
 
