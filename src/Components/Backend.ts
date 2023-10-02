@@ -639,7 +639,7 @@ class Backend {
                 method: "POST",
                 headers: {
                     "x-api-key": this.RobloxApiKey,
-                    "Content-Type": "application/json"
+                    "Content-Type": "application/octet-stream"
                 },
                 data: JSON.stringify(Data)
             });
