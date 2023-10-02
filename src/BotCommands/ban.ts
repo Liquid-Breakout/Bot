@@ -37,10 +37,20 @@ module.exports = {
         const playerName = Bot.Backend.GetRobloxNamePresenationByUserInfo(playerInfo);
 
         await Bot.Backend.BanPlayer("Discord", userId, banDuration, newLayer.author ? `@${newLayer.author.tag}` : "unknown", banReason);
-        let erasedFromLeaderboardState = await Bot.Backend.RemovePlayerFromLeaderboard(userId);
+        let [removedFromLeaderboard, foundInLeaderboard] = await Bot.Backend.RemovePlayerFromLeaderboard(userId);
+        const removedFromLeaderboardText = "and has been successfully wiped from the leaderboards";
+        const notFoundInLeaderboardText = "skipped leaderboard removal as there are no entries in leaderboards.";
+        const cannotRemoveFromLeaderboard = "however cannot be removed from leaderboards due to an error.";
+
+        let leaderboardStateText = removedFromLeaderboardText;
+        if (!removedFromLeaderboard) {
+            leaderboardStateText = cannotRemoveFromLeaderboard;
+        } else if (!foundInLeaderboard) {
+            leaderboardStateText = notFoundInLeaderboardText;
+        }
 
         const currentDate = new Date();
         const currentTime = Math.floor(currentDate.getTime() / 1000);
-        newLayer.reply(`${playerName} (${userId}) has been banned until ${banDuration != -1 ? `<t:${currentTime + banDuration * 60}:F>` : "indefinitely."}, ${erasedFromLeaderboardState ? "and has been successfully wiped from the leaderboards" : "however they cannot be wiped from the leaderboards (due to an error?)"}`);
+        await newLayer.reply(`${playerName} (${userId}) has been banned until ${banDuration != -1 ? `<t:${currentTime + banDuration * 60}:F>` : "indefinitely"}, ${leaderboardStateText}`);
 	},
 };
