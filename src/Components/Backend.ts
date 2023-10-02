@@ -640,7 +640,7 @@ class Backend {
                 headers: {
                     "x-api-key": this.RobloxApiKey
                 },
-                data: Data
+                data: JSON.stringify(Data)
             });
             success = true;
         } catch (AxiosResponse: any) {
