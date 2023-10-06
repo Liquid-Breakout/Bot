@@ -5,6 +5,7 @@ import express, {Express, Request, Response} from "express"
 import { Log, Warn } from "../Utilities/Logger";
 import { createServer } from "http"
 import { recursiveBenchmark, operationsBenchmark } from "../Utilities/CpuBenchmark"
+import bodyParser from "body-parser";
 
 // Type guards
 function isSocketClient(socket: any): socket is WebSocket {
@@ -300,6 +301,7 @@ class Balancer extends WorkerBase {
         super()
 
         this._serverApp = express();
+        this._serverApp.use(bodyParser.json());
     }
 }
 
