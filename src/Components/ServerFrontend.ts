@@ -65,7 +65,7 @@ class RequestDefiner {
             if (dataType == "string") {
                 newDataValue = receivedDataValue.toString();
             } else if (dataType == "int") {
-                newDataValue = (receivedDataValue.toString());
+                newDataValue = parseInt(receivedDataValue.toString());
             }
 
             if (newDataValue) {
@@ -90,7 +90,7 @@ class RequestDefiner {
             if (queryType == "string") {
                 newQueryValue = receivedQueryValue.toString();
             } else if (queryType == "int") {
-                newQueryValue = (receivedQueryValue.toString());
+                newQueryValue = parseInt(receivedQueryValue.toString());
             }
 
             if (newQueryValue) {
