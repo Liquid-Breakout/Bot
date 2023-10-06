@@ -266,8 +266,8 @@ class ServerFrontendV2 {
             })
             .needApiKey(true)
             .balancerOnly(true)
-            .on(async (queries: RequestQueries) => {
-                let [success, errorCode, message] = await this.ServerBackend.WhitelistAsset(queries.assetId, queries.userId);
+            .on(async (data: RequestData, queries: RequestQueries) => {
+                let [success, errorCode, message] = await this.ServerBackend.WhitelistAsset(data.assetId, data.userId);
                 return new ResponseDefiner()
                     .code(success ? HTTP_CODES.OK : HTTP_CODES.BAD_REQUEST)
                     .specificError(errorCode)
@@ -286,14 +286,14 @@ class ServerFrontendV2 {
             })
             .needApiKey(true)
             .on(async (data: RequestData, queries: RequestQueries) => {
-                if (queries.banDuration != -1 && queries.banDuration < 0) {
+                if (data.banDuration != -1 && data.banDuration < 0) {
                     return new ResponseDefiner()
                         .code(HTTP_CODES.BAD_REQUEST)
                         .specificError(COMMON_SERVER_ERRORS.INVALID_QUERY)
                         .message("Ban duration cannot be negative. (Can be set to -1 for infinite duration.)")
                 }
 
-                let [banSuccess, removeLeaderboardSuccess, errorMessage, robloxErrors] = await this.ServerBackend.BanPlayer(queries.userId, queries.banDuration, queries.reason, queries.moderator);
+                let [banSuccess, removeLeaderboardSuccess, errorMessage, robloxErrors] = await this.ServerBackend.BanPlayer(data.userId, data.banDuration, data.reason, data.moderator);
                 
                 return new ResponseDefiner()
                     .code(banSuccess ? HTTP_CODES.OK : HTTP_CODES.INTERNAL_SERVER_ERROR)
@@ -312,8 +312,8 @@ class ServerFrontendV2 {
                 userId: "int"
             })
             .needApiKey(true)
-            .on(async (queries: RequestQueries) => {
-                let [unbanSuccess, errorMessage] = await this.ServerBackend.BanPlayer(queries.userId, queries.banDuration, queries.reason, queries.moderator);
+            .on(async (data: RequestData, queries: RequestQueries) => {
+                let [unbanSuccess, errorMessage] = await this.ServerBackend.BanPlayer(data.userId, data.banDuration, data.reason, data.moderator);
                 
                 return new ResponseDefiner()
                     .code(unbanSuccess ? HTTP_CODES.OK : HTTP_CODES.INTERNAL_SERVER_ERROR)

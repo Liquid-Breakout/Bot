@@ -134,6 +134,7 @@ class Balancer extends WorkerBase {
                         worker: selectedWorker,
                         jobId: newJobId,
                         url: url,
+                        body: Request.body || {},
                         query: preparedQuery,
                         params: preparedParams,
                         headers: preparedHeaders
@@ -306,11 +307,13 @@ class Balancer extends WorkerBase {
 }
 
 class WorkerRequest {
+    public body: any = {};
     public query: {[queryName: string]: any} = {};
     public params: {[paramName: string]: any} = {};
     public headers: {[headerName: string]: any} = {};
 
-    constructor(query: {[queryName: string]: any}, params: {[paramName: string]: any}, headers: {[headerName: string]: any}) {
+    constructor(body: any, query: {[queryName: string]: any}, params: {[paramName: string]: any}, headers: {[headerName: string]: any}) {
+        this.body = body;
         this.query = query;
         this.params = params;
         this.headers = headers;
@@ -401,7 +404,7 @@ class Worker extends WorkerBase {
                     this.jobsProcessing += 1;
                     Log(`WorkerManager (Job ${receivedData.jobId}): Preparing objects for request.`);
                     
-                    const jobRequest = new WorkerRequest(receivedData.query, receivedData.params, receivedData.headers);
+                    const jobRequest = new WorkerRequest(receivedData.body, receivedData.query, receivedData.params, receivedData.headers);
                     const jobResponse = new WorkerResponse();
 
                     (async () => {
