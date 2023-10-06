@@ -313,7 +313,7 @@ class ServerFrontendV2 {
             })
             .needApiKey(true)
             .on(async (data: RequestData, queries: RequestQueries) => {
-                let [unbanSuccess, errorMessage] = await this.ServerBackend.BanPlayer(data.userId, data.banDuration, data.reason, data.moderator);
+                let [unbanSuccess, errorMessage] = await this.ServerBackend.UnbanPlayer(data.userId);
                 
                 return new ResponseDefiner()
                     .code(unbanSuccess ? HTTP_CODES.OK : HTTP_CODES.INTERNAL_SERVER_ERROR)
