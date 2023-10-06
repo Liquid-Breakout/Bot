@@ -857,7 +857,6 @@ class Backend {
             let arrayIndex = 0;
             while (arrayIndex < dataEntry.data.length) {
                 let element = dataEntry.data[arrayIndex];
-                console.log(element, element.UserId, UserId)
                 if (element.UserId == UserId) {
                     FoundUser = true;
                     dataEntry.data.splice(arrayIndex, 1);
