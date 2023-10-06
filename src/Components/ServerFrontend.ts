@@ -14,13 +14,15 @@ const HTTP_CODES = {
 
 const COMMON_SERVER_ERRORS = {
     API_KEY_ERROR: "API_KEY_ERROR",
+    INVALID_BODY: "INVALID_BODY",
     INVALID_QUERY: "INVALID_QUERY",
     INTERNAL_SERVER_ERROR: "INTERNAL_SERVER_ERROR"
 }
 
+type RequestData = {[dataName: string]: any};
 type RequestQueries = {[queryName: string]: any};
-type RequestHandlerFunction = ((queries: {[queryName: string]: string}) => ResponseDefiner);
-type RequestAsyncHandlerFunction = ((queries: {[queryName: string]: string}) => Promise<ResponseDefiner>);
+type RequestHandlerFunction = ((data: RequestData, queries: RequestQueries) => ResponseDefiner);
+type RequestAsyncHandlerFunction = ((data: RequestData, queries: RequestQueries) => Promise<ResponseDefiner>);
 
 class RequestDefiner {
     private _frontend: ServerFrontendV2 | undefined = undefined;
@@ -28,6 +30,7 @@ class RequestDefiner {
 
     public url: string = "unknown";
     public method: "GET" | "POST" = "GET";
+    public dataDefine: RequestData = {};
     public queriesDefine: RequestQueries = {};
     public requireApiKey: boolean = false;
     public mustBeBalancer: boolean = false;
@@ -47,26 +50,51 @@ class RequestDefiner {
 
         return false;
     }
-    private _createQueriesFromInfo(Request: any): any {
+    private _createDataFromInfo(Request: any): RequestData {
+        let createdData: RequestData = {};
+        let receivedData: RequestQueries = Request.body;
+
+        Object.keys(this.dataDefine).forEach((dataName: string) => {
+            const dataType = this.dataDefine[dataName];
+            let newDataValue = undefined;
+            let receivedDataValue = receivedData[dataName];
+            if (!receivedDataValue) {
+                return;
+            }
+
+            if (dataType == "string") {
+                newDataValue = receivedDataValue.toString();
+            } else if (dataType == "int") {
+                newDataValue = (receivedDataValue.toString());
+            }
+
+            if (newDataValue) {
+                createdData[dataName] = newDataValue;
+            }
+        });
+
+        return createdData;
+    }
+    private _createQueriesFromInfo(Request: any): RequestQueries {
         let createdQueries: RequestQueries = {};
         let receivedQueries: RequestQueries = Request.query;
 
         Object.keys(this.queriesDefine).forEach((queryName: string) => {
-            const paramType = this.queriesDefine[queryName];
-            let newParamValue = undefined;
-            let receivedParamValue = receivedQueries[queryName];
-            if (!receivedParamValue) {
+            const queryType = this.queriesDefine[queryName];
+            let newQueryValue = undefined;
+            let receivedQueryValue = receivedQueries[queryName];
+            if (!receivedQueryValue) {
                 return;
             }
 
-            if (paramType == "string") {
-                newParamValue = receivedParamValue.toString();
-            } else if (paramType == "int") {
-                newParamValue = (receivedParamValue.toString());
+            if (queryType == "string") {
+                newQueryValue = receivedQueryValue.toString();
+            } else if (queryType == "int") {
+                newQueryValue = (receivedQueryValue.toString());
             }
 
-            if (newParamValue) {
-                createdQueries[queryName] = newParamValue;
+            if (newQueryValue) {
+                createdQueries[queryName] = newQueryValue;
             }
         });
 
@@ -87,8 +115,24 @@ class RequestDefiner {
                 return Response.status(responseObject.httpResponseCode).send(responseObject.serialize());
             }
         }
+        let data = this._createDataFromInfo(Request);
         let queries = this._createQueriesFromInfo(Request);
 
+        // Data validation
+        const dataDefineKeys = Object.keys(this.dataDefine);
+        for (let i = 0; i < dataDefineKeys.length; i++) {
+            let dataName: string = dataDefineKeys[i];
+            let dataType: string = this.dataDefine[dataName];
+
+            if (!data[dataName]) {
+                let responseObject: ResponseDefiner =
+                    new ResponseDefiner()
+                        .code(HTTP_CODES.BAD_REQUEST)
+                        .specificError(COMMON_SERVER_ERRORS.INVALID_BODY)
+                        .message(`Data "${dataName}" must exist in JSON body and be of type "${dataType}".`)
+                return Response.status(responseObject.httpResponseCode).send(responseObject.serialize());
+            }
+        }
         // Query validation
         const queriesDefineKeys = Object.keys(this.queriesDefine);
         for (let i = 0; i < queriesDefineKeys.length; i++) {
@@ -105,7 +149,7 @@ class RequestDefiner {
             }
         }
 
-        let responseObject: ResponseDefiner = this._handlerFunction.constructor.name === "AsyncFunction" ? await (this._handlerFunction(queries) as Promise<ResponseDefiner>) : this._handlerFunction(queries) as ResponseDefiner;
+        let responseObject: ResponseDefiner = this._handlerFunction.constructor.name === "AsyncFunction" ? await (this._handlerFunction(data, queries) as Promise<ResponseDefiner>) : this._handlerFunction(data, queries) as ResponseDefiner;
         Response.status(responseObject.httpResponseCode).send(responseObject.serialize());
     }
 
@@ -120,6 +164,10 @@ class RequestDefiner {
     }
     public requestMethod(method: "GET" | "POST") {
         this.method = method;
+        return this;
+    }
+    public setDataBody(dataInfo: RequestData) {
+        this.dataDefine = dataInfo;
         return this;
     }
     public setQuery(queriesInfo: RequestQueries) {
@@ -212,7 +260,7 @@ class ServerFrontendV2 {
             .attachServerFrontend(this)
             .usingUrl("/api/v2/whitelist")
             .requestMethod("POST")
-            .setQuery({
+            .setDataBody({
                 assetId: "int",
                 userId: "int"
             })
@@ -230,15 +278,15 @@ class ServerFrontendV2 {
             .attachServerFrontend(this)
             .usingUrl("/api/v2/player/ban")
             .requestMethod("POST")
-            .setQuery({
+            .setDataBody({
                 userId: "int",
                 banDuration: "int",
                 reason: "string",
                 moderator: "string"
             })
             .needApiKey(true)
-            .on(async (queries: RequestQueries) => {
-                if (queries.banDuration != 1 && queries.banDuration < 0) {
+            .on(async (data: RequestData, queries: RequestQueries) => {
+                if (queries.banDuration != -1 && queries.banDuration < 0) {
                     return new ResponseDefiner()
                         .code(HTTP_CODES.BAD_REQUEST)
                         .specificError(COMMON_SERVER_ERRORS.INVALID_QUERY)
@@ -260,7 +308,7 @@ class ServerFrontendV2 {
             .attachServerFrontend(this)
             .usingUrl("/api/v2/player/unban")
             .requestMethod("POST")
-            .setQuery({
+            .setDataBody({
                 userId: "int"
             })
             .needApiKey(true)
