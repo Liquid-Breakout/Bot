@@ -229,6 +229,9 @@ class ResponseDefiner {
         if (!this.data) {
             this.data = {};
         }
+        if (!dataValue) {
+            return this;
+        }
         this.data[dataName] = dataValue;
         return this;
     }
@@ -272,6 +275,7 @@ class ServerFrontendV2 {
                     .code(success ? HTTP_CODES.OK : HTTP_CODES.BAD_REQUEST)
                     .specificError(errorCode)
                     .message(message)
+                    .addData("shortId", success ? this.ServerBackend.Backend.IDConverter.Short(data.assetId.toString()) : undefined)
             });
 
         new RequestDefiner()
