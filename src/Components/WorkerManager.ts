@@ -47,6 +47,7 @@ class WorkerBase {
 class Balancer extends WorkerBase {
     private _serverApp: Express;
     private _registeredWorkers: {[workerId: string]: {connection: sockjsServer.Connection, info: {jobsProcessing: number, processPower: number, healthCheckRespond: number}}} = {};
+    private _registeredIoClients: {[username: string]: sockjsServer.Connection} = {};
     private _jobsData: {[url: string]: {
         workersReady: string[], // Keep track of workers ready to process
         workersFailed: string[], // Keep track of workers failed to do the job
@@ -214,17 +215,26 @@ class Balancer extends WorkerBase {
                     return;
                 }
                 if (receivedData.type == "connect") {
-                    if (this._registeredWorkers[receivedData.workerInfo.id] === undefined) {
-                        Log(`WorkerManager: Registered worker ${receivedData.workerInfo.id}`);
-                        this._registeredWorkers[receivedData.workerInfo.id] = {
-                            connection: connection,
-                            info: {
-                                jobsProcessing: 0,
-                                healthCheckRespond: (new Date()).getTime(),
-                                processPower: receivedData.workerInfo.processPower
-                            }
-                        };
-                        this.WorkerAvaliable = true;
+                    if (receivedData.type == "worker") {
+                        if (this._registeredWorkers[receivedData.workerInfo.id] === undefined) {
+                            Log(`WorkerManager: Registered worker ${receivedData.workerInfo.id}`);
+                            this._registeredWorkers[receivedData.workerInfo.id] = {
+                                connection: connection,
+                                info: {
+                                    jobsProcessing: 0,
+                                    healthCheckRespond: (new Date()).getTime(),
+                                    processPower: receivedData.workerInfo.processPower
+                                }
+                            };
+                            this.WorkerAvaliable = true;
+                        }
+                    } else if (receivedData.type == "io") {
+                        if (this._registeredIoClients[receivedData.username] === undefined) {
+                            Log(`WorkerManager: New io client ${receivedData.username}`);
+                            this._registeredIoClients[receivedData.username] = connection;
+                        }
+                    } else {
+                        connection.end();
                     }
                 } else {
                     if (this._registeredWorkers[receivedData.workerInfo.id] === undefined) {
@@ -280,6 +290,15 @@ class Balancer extends WorkerBase {
                 this.WorkerAvaliable = false;
             }
         }, 30000); // Every 15 seconds technically
+    }
+
+    public sendToIo(username: string, data: string) {
+        if (!this._registeredIoClients[username]) {
+            Warn(`WorkerManager: io client ${username} is not connected!`);
+            return;
+        }
+
+        this._registeredIoClients[username].write(data);
     }
 
     public override bind(url: string, handlerFunc: any, requestType: "GET" | "POST", mustBeBalancer?: boolean, processPower?: number) {

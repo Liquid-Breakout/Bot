@@ -325,6 +325,34 @@ class ServerFrontendV2 {
                     .message(errorMessage != undefined ? `Failed to unban: ${errorMessage}` : undefined)
                     .addData("unbanned", unbanSuccess)
             });
+
+        // Websockets related
+        new RequestDefiner()
+            .attachServerFrontend(this)
+            .usingUrl("/api/v2/socket/send")
+            .requestMethod("POST")
+            .setDataBody({
+                username: "string",
+                data: "string"
+            })
+            .needApiKey(true)
+            .balancerOnly(true)
+            .on(async (data: RequestData, queries: RequestQueries) => {
+                let success: boolean = false;
+                let errorMessage: any = "Unknown";
+                try {
+                    (this._worker as Balancer).sendToIo(data.username, data.data)
+                    success = true;
+                    errorMessage = undefined;
+                } catch (err) {
+                    errorMessage = err;
+                }
+                return new ResponseDefiner()
+                    .code(success ? HTTP_CODES.OK : HTTP_CODES.INTERNAL_SERVER_ERROR)
+                    .specificError(!success ? COMMON_SERVER_ERRORS.INTERNAL_SERVER_ERROR : undefined)
+                    .addData("ok", success)
+                    .addData("errorMessage", errorMessage)
+            })
     }
 }
 
