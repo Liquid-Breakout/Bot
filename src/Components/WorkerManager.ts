@@ -6,6 +6,7 @@ import { Log, Warn } from "../Utilities/Logger";
 import { createServer } from "http"
 import { recursiveBenchmark, operationsBenchmark } from "../Utilities/CpuBenchmark"
 import bodyParser from "body-parser";
+import path from "path";
 
 // Type guards
 function isSocketClient(socket: any): socket is WebSocket {
@@ -320,7 +321,9 @@ class Balancer extends WorkerBase {
     constructor(_: any) {
         super()
 
+        __dirname = path.dirname(module.filename || process.execPath); // nexe moment
         this._serverApp = express();
+        this._serverApp.use(express.static(path.join(__dirname, '../../static')))
         this._serverApp.use(bodyParser.json());
     }
 }
