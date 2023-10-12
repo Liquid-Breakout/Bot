@@ -198,7 +198,7 @@ class Balancer extends WorkerBase {
     public connect() {
         const serverListener = createServer(this._serverApp);
 
-        this._socketCommunicator = sockjsServer.createServer({prefix: "/balancerSocket"});
+        this._socketCommunicator = sockjsServer.createServer({prefix: "/socket"});
         this._socketCommunicator.installHandlers(serverListener);
 
         serverListener.listen(8080, '0.0.0.0');
@@ -380,7 +380,7 @@ class Worker extends WorkerBase {
     }
 
     public async connect() {
-        this._socketCommunicator = new sockjsClient(`https://${this._socketUrl}/balancerSocket`);
+        this._socketCommunicator = new sockjsClient(`https://${this._socketUrl}/socket`);
         this.processPower = operationsBenchmark(2250) / recursiveBenchmark(35) / 200;
         Log(`WorkerManager: Process Power: ${this.processPower}`);
         
