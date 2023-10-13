@@ -216,7 +216,7 @@ class Balancer extends WorkerBase {
                     return;
                 }
                 if (receivedData.type == "connect") {
-                    if (receivedData.type == "worker") {
+                    if (receivedData.connectionType == "worker") {
                         if (this._registeredWorkers[receivedData.workerInfo.id] === undefined) {
                             Log(`WorkerManager: Registered worker ${receivedData.workerInfo.id}`);
                             this._registeredWorkers[receivedData.workerInfo.id] = {
@@ -229,7 +229,7 @@ class Balancer extends WorkerBase {
                             };
                             this.WorkerAvaliable = true;
                         }
-                    } else if (receivedData.type == "io") {
+                    } else if (receivedData.connectionType == "io") {
                         if (this._registeredIoClients[receivedData.username] === undefined) {
                             Log(`WorkerManager: New io client ${receivedData.username}`);
                             this._registeredIoClients[receivedData.username] = connection;
@@ -399,7 +399,7 @@ class Worker extends WorkerBase {
             Log(`WorkerManager: Balancer socket opened, connection can be established`);
              // Connect to Balancer
             Log(`WorkerManager: Connecting to Balancer`);
-            this.sendMessage({type: "connect"});
+            this.sendMessage({type: "connect", connectionType: "worker"});
         })
 
         this._socketCommunicator.addEventListener("message", (message) => {
