@@ -15,9 +15,6 @@ class LegacyServerFrontend {
 
         Log("LegacyServerFrontend initialize");
 
-        this._worker.bind('/', (Request: any, Response: any) => {
-            Response.send("API site for Liquid Breakout.\nCurrent APIs:\n-Whitelisting\n-ID Converter");
-        }, "GET", true);
         this._worker.bind('/whitelist', async (Request: any, Response: any) => {
             const RequestQuery = Request.query;
             let AssetId: number = RequestQuery.assetId ? parseInt(RequestQuery.assetId.toString()) : NaN;
