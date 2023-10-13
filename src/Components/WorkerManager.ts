@@ -30,7 +30,11 @@ async function sleepUntil(checkFunc: any, timeout?: number) {
 }
 
 function data(socketMessage: string) {
-    return JSON.parse(socketMessage);
+    let returnedData = undefined;
+    try {
+        returnedData = JSON.parse(socketMessage);
+    } catch (e) {}
+    return returnedData
 }
 
 class WorkerBase {
@@ -212,11 +216,15 @@ class Balancer extends WorkerBase {
             Log("WorkerManager: New Socket client connected.");
             connection.on("data", (message: any) => {
                 const receivedData = data(message);
-                if (!receivedData || !receivedData.workerInfo) {
-                    return;
+                if (!receivedData) {
+                    return connection.write(JSON.stringify({type: "error", message: "Invalid data"}));
                 }
                 if (receivedData.type == "connect") {
                     if (receivedData.connectionType == "worker") {
+                        if (!receivedData.workerInfo) {
+                            connection.write(JSON.stringify({type: "error", message: "Invalid data"}));
+                            return connection.end();
+                        }
                         if (this._registeredWorkers[receivedData.workerInfo.id] === undefined) {
                             Log(`WorkerManager: Registered worker ${receivedData.workerInfo.id}`);
                             this._registeredWorkers[receivedData.workerInfo.id] = {
@@ -228,12 +236,14 @@ class Balancer extends WorkerBase {
                                 }
                             };
                             this.WorkerAvaliable = true;
+                            connection.write(JSON.stringify({type: "connectSuccess", message: "Connected"}));
                         }
                     } else if (receivedData.connectionType == "io") {
                         if (this._registeredIoClients[receivedData.username] === undefined) {
                             Log(`WorkerManager: New io client ${receivedData.username}`);
                             this._registeredIoClients[receivedData.username] = connection;
                         }
+                        connection.write(JSON.stringify({type: "connectSuccess", message: "Connected"}));
                     } else {
                         connection.end();
                     }
