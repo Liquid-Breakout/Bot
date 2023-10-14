@@ -270,6 +270,30 @@ class Balancer extends WorkerBase {
                     }
                 }
             });
+            connection.on("close", () => {
+                Object.keys(this._registeredWorkers).forEach((workerId: string) => {
+                    if (this._registeredWorkers[workerId].connection == connection) {
+                        Log(`Worker ${workerId} disconnected.`);
+                        delete this._registeredWorkers[workerId];
+                        Object.values(this._jobsData).forEach((jobInfo) => {
+                            const indexInReady = jobInfo.workersReady.indexOf(workerId);
+                            if (indexInReady !== -1) {
+                                jobInfo.workersReady.splice(indexInReady, 1);
+                            }
+                            const indexInFailed = jobInfo.workersFailed.indexOf(workerId);
+                            if (indexInFailed !== -1) {
+                                jobInfo.workersFailed.splice(indexInFailed, 1);
+                            }
+                        });
+                    }
+                });
+                Object.keys(this._registeredIoClients).forEach((username: string) => {
+                    if (this._registeredIoClients[username] == connection) {
+                        Log(`IO client ${username} disconnected.`);
+                        delete this._registeredIoClients[username];
+                    }
+                });
+            })
         });
 
         // Send health check to all workers
