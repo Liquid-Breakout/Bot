@@ -1,3 +1,0 @@
-[submodule "static/ioClient"]
-	path = static/ioClient
-	url = https://github.com/Liquid-Breakout/ioClient.git
