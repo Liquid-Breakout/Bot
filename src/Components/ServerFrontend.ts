@@ -66,6 +66,19 @@ class RequestDefiner {
                 newDataValue = receivedDataValue.toString();
             } else if (dataType == "int") {
                 newDataValue = parseInt(receivedDataValue.toString());
+            } else if (dataType == "string[]") {
+                if (Array.isArray(receivedDataValue)) {
+                    newDataValue = [];
+                    receivedDataValue.forEach((e) => {
+                        if (!e) {
+                            return;
+                        }
+                        const toAdd = e.toString();
+                        if (toAdd) {
+                            newDataValue.push(toAdd);
+                        }
+                    })
+                }
             }
 
             if (newDataValue) {
@@ -91,6 +104,19 @@ class RequestDefiner {
                 newQueryValue = receivedQueryValue.toString();
             } else if (queryType == "int") {
                 newQueryValue = parseInt(receivedQueryValue.toString());
+            } else if (queryType == "string[]") {
+                if (Array.isArray(receivedQueryValue)) {
+                    newQueryValue = [];
+                    receivedQueryValue.forEach((e) => {
+                        if (!e) {
+                            return;
+                        }
+                        const toAdd = e.toString();
+                        if (toAdd) {
+                            newQueryValue.push(toAdd);
+                        }
+                    })
+                }
             }
 
             if (newQueryValue) {
@@ -329,7 +355,7 @@ class ServerFrontendV2 {
         // Websockets related
         new RequestDefiner()
             .attachServerFrontend(this)
-            .usingUrl("/api/v2/socket/send")
+            .usingUrl("/api/v2/io/send")
             .requestMethod("POST")
             .setDataBody({
                 username: "string",
@@ -352,7 +378,33 @@ class ServerFrontendV2 {
                     .specificError(!success ? COMMON_SERVER_ERRORS.INTERNAL_SERVER_ERROR : undefined)
                     .addData("ok", success)
                     .addData("errorMessage", errorMessage)
+            });
+        new RequestDefiner()
+            .attachServerFrontend(this)
+            .usingUrl("/api/v2/io/send/batch")
+            .requestMethod("POST")
+            .setDataBody({
+                usernames: "string[]",
+                data: "string"
             })
+            .needApiKey(true)
+            .balancerOnly(true)
+            .on(async (data: RequestData, queries: RequestQueries) => {
+                let success: boolean = false;
+                let errorMessage: any = "Unknown";
+                try {
+                    (this._worker as Balancer).sendToIoInBatch(data.usernames, data.data)
+                    success = true;
+                    errorMessage = undefined;
+                } catch (err) {
+                    errorMessage = err;
+                }
+                return new ResponseDefiner()
+                    .code(success ? HTTP_CODES.OK : HTTP_CODES.INTERNAL_SERVER_ERROR)
+                    .specificError(!success ? COMMON_SERVER_ERRORS.INTERNAL_SERVER_ERROR : undefined)
+                    .addData("ok", success)
+                    .addData("errorMessage", errorMessage)
+            });
     }
 }
 

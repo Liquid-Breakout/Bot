@@ -312,6 +312,10 @@ class Balancer extends WorkerBase {
         this._registeredIoClients[username].write(data);
     }
 
+    public sendToIoInBatch(usernames: string[], data: string) {
+        usernames.forEach(username => this.sendToIo(username, data));
+    }
+
     public override bind(url: string, handlerFunc: any, requestType: "GET" | "POST", mustBeBalancer?: boolean, processPower?: number) {
         this._bindedUrls[url] = handlerFunc;
         this._jobsData[url] = {
