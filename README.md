@@ -1,5 +1,7 @@
 ## :warning: This is a W.I.P. project! :warning:
 The current backend will still be used for now.
+  
+Despite the repo name being "Bot", this branch is only for Backend. It will be renamed soon.
 ## So.... what is this exactly?
 This is a reimplementation of LB's Backend, made in Rust.
 ## Why Rust? Node.js was fine.
