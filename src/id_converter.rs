@@ -1,6 +1,4 @@
-fn reverse_string(s: &str) -> String {
-    s.chars().rev().collect()
-}
+use std::num::ParseIntError;
 
 pub struct IDConverter {
     alphabets: String,
@@ -8,7 +6,11 @@ pub struct IDConverter {
 }
 
 impl IDConverter {
-    fn convert_base(input: String, translator: &String, convert_translator: &String, shift_left: bool) -> String {
+    pub fn new() -> Self {
+        Self { alphabets: "".to_string(), numbers: "".to_string() }
+    }
+
+    pub fn convert_base(input: String, translator: &String, convert_translator: &String, shift_left: bool) -> String {
         let input = input.as_str();
         let translator = translator.as_str();
         let convert_translator = convert_translator.as_str();
@@ -45,7 +47,7 @@ impl IDConverter {
                 result.push(char_to_use);
             }
 
-            reverse_string(result.as_str())
+            result.chars().rev().collect()
         } else {
             String::from(convert_translator.chars().nth(1).unwrap())
         }
@@ -53,11 +55,11 @@ impl IDConverter {
 
     pub fn to_short(&self, input: u64) -> String {
         let input = input.to_string();
-        reverse_string(self::IDConverter::convert_base(input, &self.numbers, &self.alphabets, true).as_str())
+        IDConverter::convert_base(input, &self.numbers, &self.alphabets, true).chars().rev().collect()
     }
 
-    pub fn to_number(&self, input: String) -> u64 {
-        let output = self::IDConverter::convert_base(input, &self.alphabets, &self.numbers, false).parse::<u64>().expect("Transformed ID is not a number. Input possibly error/corrupted.");
-        output
+    pub fn to_number(&self, input: String) -> Result<u64, String> {
+        let output: u64 = IDConverter::convert_base(input, &self.alphabets, &self.numbers, false).parse().map_err(|e: ParseIntError| e.to_string())?;
+        Ok(output)
     }
 }
