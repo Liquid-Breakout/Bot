@@ -39,10 +39,6 @@ class DiscordBot {
     private _checkMemberPermissions(message: DiscordBotCompatibilityLayer, permsArray?: string[]) {
         if (!permsArray)
             return true;
-        if (!message.guild) {
-            return false;
-        }
-        // not needed but lolz
         if (!message.author || !message.member) {
             return false;
         }
@@ -120,7 +116,8 @@ class DiscordBot {
         const command = this._commands.get(CommandName);
         if (command) {
             let messageLayer = new DiscordBotCompatibilityLayer(Message, false, this);
-
+            await messageLayer.init();
+            
             if (!this._checkMemberPermissions(messageLayer, command.requires)) {
                 return messageLayer.reply(`You do not have permission to run this command!\nCommand permission: [${command.requires.join(", ")}]`);
             }
@@ -140,6 +137,7 @@ class DiscordBot {
         const command = this._commands.get(Interaction.commandName);
         if (command && command.slashData) {
             let messageLayer = new DiscordBotCompatibilityLayer(Interaction, false, this);
+            await messageLayer.init();
 
             if (!this._checkMemberPermissions(messageLayer, command.requires)) {
                 return messageLayer.reply(`You do not have permission to run this command!\nCommand permission: [${command.requires.join(", ")}]`);
@@ -333,6 +331,9 @@ class DiscordBotCompatibilityLayer {
     public async init(ephemeral?: boolean) {
         if (this._defer && this._object instanceof ChatInputCommandInteraction)
             await this._object.deferReply({ ephemeral: ephemeral != undefined ? ephemeral : true });
+        if (!this.member && this.author && this.guild) {
+            this.member = await this.guild.members.fetch(this.author.id);
+        }
     }
 
     constructor(InteractionObject: Message<boolean> | ChatInputCommandInteraction<any>, doDefer: boolean, botObject?: DiscordBot) {
@@ -354,9 +355,6 @@ class DiscordBotCompatibilityLayer {
             if (!this.guild) {
                 this.guild = botObject.Client.guilds.cache.get("873624443300225065");
             }
-        }
-        if (!this.member && this.author && this.guild) {
-            this.member = this.guild!.members.cache.get(this.author.id);
         }
     }
 }
