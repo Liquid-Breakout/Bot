@@ -1,4 +1,4 @@
-import { ActivityType, Channel, ChatInputCommandInteraction, Client, Collection, EmbedBuilder, Events, GatewayIntentBits, GuildMember, Interaction, Message, Partials, REST, Routes, TextChannel, User, WebhookClient } from "discord.js";
+import { ActivityType, Channel, ChatInputCommandInteraction, Client, Collection, EmbedBuilder, Events, GatewayIntentBits, Guild, GuildMember, Interaction, Message, Partials, REST, Routes, TextChannel, User, WebhookClient } from "discord.js";
 import Backend from "./Backend";
 import { Log } from "../Utilities/Logger";
 import fs from "fs"
@@ -25,11 +25,12 @@ class DiscordBot {
     public Client: Client;
     public Alive: boolean;
     public Prefix: string;
+    public Development: boolean = false;
 
     public UpdatePresence(ActivityName: string) {
         let botUser = this.Client.user;
         if (botUser) {
-            botUser.setActivity(`${ActivityName} | Made by shiinazzz (cutymeo).`, {
+            botUser.setActivity(`${this.Development ? "DEVELOPMENT | " : ""}${ActivityName} | Made by shiinazzz (cutymeo).`, {
                 type: ActivityType.Watching,
             });
         }
@@ -53,7 +54,7 @@ class DiscordBot {
                 havePermission = this.privilegeUsers.indexOf(message.author.id) != -1;
             } else if (permName == "REVERSE_SHORT") {
                 havePermission = this.reverseShortPrivilegeUsers.indexOf(message.author.id) != -1;
-            } else if (this.roleIds[permName] != undefined) {
+            } else if (this.roleIds[permName]) {
                 havePermission = message.member.roles.cache.has(this.roleIds[permName]);
             }
 
@@ -118,13 +119,15 @@ class DiscordBot {
         this.UpdatePresence(`Processing ${CommandName} for ${Message.author.tag}`);
         const command = this._commands.get(CommandName);
         if (command) {
-            if (!this._checkMemberPermissions(new DiscordBotCompatibilityLayer(Message, false), command.requires)) {
-                return new DiscordBotCompatibilityLayer(Message, false).reply(`You do not have permission to run this command!\nCommand permission: [${command.requires.join(", ")}]`);
+            let messageLayer = new DiscordBotCompatibilityLayer(Message, false, this);
+
+            if (!this._checkMemberPermissions(messageLayer, command.requires)) {
+                return messageLayer.reply(`You do not have permission to run this command!\nCommand permission: [${command.requires.join(", ")}]`);
             }
             try {
                 await command.execute(this, Message, Arguments);
             } catch (err) {
-                new DiscordBotCompatibilityLayer(Message, false).reply(`Failed to complete command, error: ${err}`);
+                messageLayer.reply(`Failed to complete command, error: ${err}`);
             }
         }
         this.UpdatePresence("Pending.");
@@ -136,13 +139,15 @@ class DiscordBot {
         this.UpdatePresence(`Processing ${Interaction.commandName} for ${Interaction.user.tag}`);
         const command = this._commands.get(Interaction.commandName);
         if (command && command.slashData) {
-            if (!this._checkMemberPermissions(new DiscordBotCompatibilityLayer(Interaction, false), command.requires)) {
-                return new DiscordBotCompatibilityLayer(Interaction, false).reply(`You do not have permission to run this command!\nCommand permission: [${command.requires.join(", ")}]`);
+            let messageLayer = new DiscordBotCompatibilityLayer(Interaction, false, this);
+
+            if (!this._checkMemberPermissions(messageLayer, command.requires)) {
+                return messageLayer.reply(`You do not have permission to run this command!\nCommand permission: [${command.requires.join(", ")}]`);
             }
             try {
                 await command.execute(this, Interaction, []);
             } catch (err) {
-                new DiscordBotCompatibilityLayer(Interaction, false).reply(`Failed to complete command, error: ${err}`);
+                messageLayer.reply(`Failed to complete command, error: ${err}`);
             }
         }
         this.UpdatePresence("Pending.");
@@ -298,7 +303,7 @@ class DiscordBotCompatibilityLayer {
     private _defer: boolean;
 
     public author?: User;
-    public guild?: any;
+    public guild?: Guild | null;
     public member?: GuildMember | null;
 
     public async send() {
@@ -330,7 +335,7 @@ class DiscordBotCompatibilityLayer {
             await this._object.deferReply({ ephemeral: ephemeral != undefined ? ephemeral : true });
     }
 
-    constructor(InteractionObject: Message<boolean> | ChatInputCommandInteraction<any>, doDefer: boolean) {
+    constructor(InteractionObject: Message<boolean> | ChatInputCommandInteraction<any>, doDefer: boolean, botObject?: DiscordBot) {
         this._object = InteractionObject;
         this._defer = doDefer;
 
@@ -343,6 +348,15 @@ class DiscordBotCompatibilityLayer {
             this.author = this._object.user;
             this.guild = this._object.guild;
             this.member = this._object.member;
+        }
+
+        if (botObject) {
+            if (!this.guild) {
+                this.guild = botObject.Client.guilds.cache.get("873624443300225065");
+            }
+        }
+        if (!this.member && this.author && this.guild) {
+            this.member = this.guild!.members.cache.get(this.author.id);
         }
     }
 }

@@ -41,6 +41,7 @@ let Bot: DiscordBot | undefined;
 if (cluster.isPrimary && IsBalancer) {
 	Log("Balancer started.");
 	Bot = new DiscordBot(AppBackend, ";", BotToken, BotClientId);
+	Bot.Development = IsDevelopment;
 	Bot.start();
 	if (IsDevelopment) {
 		cluster.fork(); // Create new instance that acts as the worker.
