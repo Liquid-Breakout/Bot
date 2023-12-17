@@ -2,7 +2,7 @@ import { ChatInputCommandInteraction, EmbedBuilder, Message, SlashCommandBuilder
 import { DiscordBot, DiscordBotCompatibilityLayer } from "../Components/DiscordBot"
 
 module.exports = {
-    requires: ["PRIVILEGE"],
+    requires: ["PRIVILEGE", "INGAME_MODS"],
 	slashData: new SlashCommandBuilder()
 		.setName("ban")
 		.setDescription("Ban a player.")

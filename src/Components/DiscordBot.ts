@@ -1,4 +1,4 @@
-import { ActivityType, Channel, ChatInputCommandInteraction, Client, Collection, EmbedBuilder, Events, GatewayIntentBits, Interaction, Message, Partials, REST, Routes, TextChannel, User, WebhookClient } from "discord.js";
+import { ActivityType, Channel, ChatInputCommandInteraction, Client, Collection, EmbedBuilder, Events, GatewayIntentBits, GuildMember, Interaction, Message, Partials, REST, Routes, TextChannel, User, WebhookClient } from "discord.js";
 import Backend from "./Backend";
 import { Log } from "../Utilities/Logger";
 import fs from "fs"
@@ -15,6 +15,9 @@ class DiscordBot {
     
     private privilegeUsers: string[] = ["915410908921077780", "849118831251030046", "456202569740713986", "268973336392892416", "876892716208889897"];
     private reverseShortPrivilegeUsers: string[] = ["915410908921077780", "849118831251030046", "324812431165751298", "456202569740713986", "268973336392892416"];
+    private roleIds: {[roleName: string]: string} = {
+        INGAME_MODS: "1185747952162058390"
+    };
     private _commands: Collection<string, any>;
     private _commandsData: any[];
 
@@ -32,15 +35,32 @@ class DiscordBot {
         }
     }
 
-    private _checkUserPermissions(userId: string, permsArray?: string[]) {
+    private _checkMemberPermissions(message: DiscordBotCompatibilityLayer, permsArray?: string[]) {
         if (!permsArray)
             return true;
+        if (!message.guild) {
+            return false;
+        }
+        // not needed but lolz
+        if (!message.author || !message.member) {
+            return false;
+        }
 
         let havePermission = undefined;
-        if (!havePermission && permsArray.indexOf("PRIVILEGE") != -1)
-            havePermission = this.privilegeUsers.indexOf(userId) != -1;
-        if (!havePermission && permsArray.indexOf("REVERSE_SHORT") != -1)
-            havePermission = this.reverseShortPrivilegeUsers.indexOf(userId) != -1;
+        for (let i = 0; i < permsArray.length; i++) {
+            let permName = permsArray[i];
+            if (permName == "PRIVILEGE") {
+                havePermission = this.privilegeUsers.indexOf(message.author.id) != -1;
+            } else if (permName == "REVERSE_SHORT") {
+                havePermission = this.reverseShortPrivilegeUsers.indexOf(message.author.id) != -1;
+            } else if (this.roleIds[permName] != undefined) {
+                havePermission = message.member.roles.cache.has(this.roleIds[permName]);
+            }
+
+            if (havePermission) {
+                break;
+            }
+        }
         return havePermission == undefined || havePermission == true;
     }
 
@@ -98,7 +118,7 @@ class DiscordBot {
         this.UpdatePresence(`Processing ${CommandName} for ${Message.author.tag}`);
         const command = this._commands.get(CommandName);
         if (command) {
-            if (!this._checkUserPermissions(Message.author.id, command.requires)) {
+            if (!this._checkMemberPermissions(new DiscordBotCompatibilityLayer(Message, false), command.requires)) {
                 return new DiscordBotCompatibilityLayer(Message, false).reply(`You do not have permission to run this command!\nCommand permission: [${command.requires.join(", ")}]`);
             }
             try {
@@ -116,7 +136,7 @@ class DiscordBot {
         this.UpdatePresence(`Processing ${Interaction.commandName} for ${Interaction.user.tag}`);
         const command = this._commands.get(Interaction.commandName);
         if (command && command.slashData) {
-            if (!this._checkUserPermissions(Interaction.user.id, command.requires)) {
+            if (!this._checkMemberPermissions(new DiscordBotCompatibilityLayer(Interaction, false), command.requires)) {
                 return new DiscordBotCompatibilityLayer(Interaction, false).reply(`You do not have permission to run this command!\nCommand permission: [${command.requires.join(", ")}]`);
             }
             try {
@@ -279,6 +299,7 @@ class DiscordBotCompatibilityLayer {
 
     public author?: User;
     public guild?: any;
+    public member?: GuildMember | null;
 
     public async send() {
         return;
@@ -316,10 +337,12 @@ class DiscordBotCompatibilityLayer {
         if (this._object instanceof Message) {
             this.author = this._object.author;
             this.guild = this._object.guild;
+            this.member = this._object.member;
         }
         else if (this._object instanceof ChatInputCommandInteraction) {
             this.author = this._object.user;
             this.guild = this._object.guild;
+            this.member = this._object.member;
         }
     }
 }
