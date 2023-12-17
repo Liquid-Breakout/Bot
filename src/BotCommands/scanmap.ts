@@ -14,8 +14,12 @@ module.exports = {
                 Arguments = [Interaction.options.getInteger('asset_id')]
 
         const RequestAssetId: number | undefined = Arguments[0] ? parseInt(Arguments[0]) : undefined;
-        if (!RequestAssetId)
+        if (!RequestAssetId) {
             return newLayer.reply("Asset ID must be a number.");
+        }
+        if (Bot.Backend.GetBypassScanIds().indexOf(RequestAssetId) != -1) {
+            return newLayer.reply("Your map ID is set to bypass scan; skipped.");
+        }
 
         const ScanResult = await Bot.Backend.ScanForMaliciousScripts(RequestAssetId);
         if (ScanResult.code == Bot.Backend.OutputCodes.SCAN_RESULT_CLEAN) {

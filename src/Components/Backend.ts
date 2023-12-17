@@ -379,7 +379,13 @@ class Backend {
                 )
             }
         }
-    }    
+    }
+
+    public GetBypassScanIds(): number[] {
+        return [
+            // TIDETER's Backjumps disabler.
+        ];
+    }
 
     public async ScanForMaliciousScripts(AssetId: number, SkipOwnedCheck?: boolean) {
         if (!SkipOwnedCheck) {

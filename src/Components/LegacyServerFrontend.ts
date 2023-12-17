@@ -99,6 +99,17 @@ class LegacyServerFrontend {
 
             Response.send(JSON.stringify(this._backend.ScriptsFilterList.roblox));
         }, "GET", true);
+        this._worker.bind('/querybypassscan', async (Request: any, Response: any) => {
+            const RequestQuery = Request.query;
+            let ApiKey: string = RequestQuery.apiKey ? RequestQuery.apiKey.toString() : "NULL";
+
+            if (ApiKey == "NULL" || !(await this._backend.IsValidApiKey(ApiKey))) {
+				Response.status(400).send("Invalid apiKey param or API key has been invalidated.")
+				return;
+            }
+
+            Response.send(JSON.stringify(this._backend.GetBypassScanIds()));
+        }, "GET", true);
 
          this._worker.bind('/internal/getplacefile', async (Request: any, Response: any) => {
             const RequestQuery = Request.query;
